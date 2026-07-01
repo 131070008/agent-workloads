@@ -1,0 +1,22 @@
+.DS_Store
+*.pyc
+__pycache__/
+
+# Local virtual environments
+.venv/
+venv/
+.venv-*/
+
+# Local benchmark data and generated outputs
+*/results/
+*/logs/
+*/.cache/
+
+# Large generated/intermediate artifacts
+*.log
+*.tmp
+*.sqlite-journal
+*.egg-info/
+
+# WebArena generated prompt cache
+WebArena/upstream/webarena-src/agent/prompts/jsons/

@@ -1,0 +1,5 @@
+{"id":"toy-001","title":"Machine Learning","content":"Machine learning is a field of artificial intelligence in which systems learn patterns from data to make predictions or decisions.","source":"local/toy_smoke"}
+{"id":"toy-002","title":"Vector Search","content":"Vector search represents documents and queries as numerical embeddings, then retrieves nearby vectors using exact or approximate nearest neighbor search.","source":"local/toy_smoke"}
+{"id":"toy-003","title":"FAISS","content":"FAISS is a library for efficient similarity search over dense vectors. It supports exact flat indexes and approximate indexes such as IVF and HNSW.","source":"local/toy_smoke"}
+{"id":"toy-004","title":"RAG","content":"Retrieval augmented generation first retrieves relevant documents, then provides those documents as context for a language model answer.","source":"local/toy_smoke"}
+{"id":"toy-005","title":"Agent Tool Use","content":"Agent workloads often alternate between model calls and tools such as search, shell commands, browser actions, and file operations.","source":"local/toy_smoke"}

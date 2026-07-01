@@ -1,0 +1,50 @@
+0-dimensional biomaterials lack inductive properties.
+1 in 5 million in UK have abnormal PrP positivity.
+1-1% of colorectal cancer patients are diagnosed with regional or distant metastases.
+10% of sudden infant death syndrome (SIDS) deaths happen in newborns aged less than 6 months.
+32% of liver transplantation programs required patients to discontinue methadone treatment in 2001.
+4-PBA treatment decreases endoplasmic reticulum stress in response to general endoplasmic reticulum stress markers.
+4-PBA treatment raises endoplasmic reticulum stress in response to general endoplasmic reticulum stress markers.
+40mg/day dosage of folic acid and 2mg/day dosage of vitamin B12 does not affect chronic kidney disease (CKD) progression.
+5'-nucleotidase metabolizes 6MP.
+50% of patients exposed to radiation have activated markers of mesenchymal stem cells.
+53% of perinatal mortality is due to low birth weight.
+61% of colorectal cancer patients are diagnosed with regional or distant metastases.
+7-day-old adult Caenorhabditis elegans exhibit approximately 5% of the learning capacity seen in 1-day old adults.
+7-day-old adult Caenorhabditis elegans exhibit approximately 75% of the learning capacity seen in 1-day old adults.
+70% of burn patients are admitted for hospitalization and further treatment after appearing at hospital emergency wards or outpatient clinics.
+76-85% of people with severe mental disorder receive no treatment in low and middle income countries.
+90% of patients with melanoma and an objective response to PD-1 blockade will experience a progression in their melanoma.
+90% of sudden infant death syndrome (SIDS) deaths happen in newborns aged less than 6 months.
+A 100g dose of chloroquine chemoprophylactic regimen results in retinal toxicity after 1 year of weekly intake.
+A 100g dose of chloroquine chemoprophylactic regimen results in retinal toxicity after 5-6 years of weekly intake.
+A T helper 2 cell (Th2) environment impedes disease development in patients with systemic lupus erythematosus (SLE).
+A breast cancer patient's capacity to metabolize tamoxifen influences treatment outcome.
+A country's Vaccine Alliance (GAVI) eligibility is not indictivate of accelerated adoption of the Hub vaccine.
+A deficiency of folate increases blood levels of homocysteine.
+A deficiency of vitamin B12 decreases blood levels of homocysteine.
+A deficiency of vitamin B6 decreases blood levels of homocysteine.
+A diminished ovarian reserve does not solely indicate infertility in an a priori non-infertile population.
+A diminished ovarian reserve is a very strong indicator of infertility, even in an a priori non-infertile population.
+A high microerythrocyte count protects against severe anemia in homozygous alpha (+)- thalassemia trait subjects.
+A low percentage of hematopoietic progenitor cells are susceptible to HIV-1 infection ex vivo.
+A mutation in HNF4A leads to an increased risk of developing diabetes by the age of 14 years.
+A mutation in HNF4A leads to an increased risk of diabetes by the age of 14 years.
+A single nucleotide variant the gene DGKK is strongly associated with increased risk of hypospadias.
+A strong bias in the phage genome locations where the spacers were derived has been observed in many CRISPR subtypes that confer the immunity to phage.
+ALDH1 expression is associated with poorer prognosis for breast cancer primary tumors.
+AMP-activated protein kinase (AMPK) activation reduces inflammation-related fibrosis in the lungs.
+APOE4 expression in iPSC-derived neurons results in decreased tau phosphorylation.
+ART has no effect on the infectiveness of HIV-positive people.
+ART substantially reduces infectiveness of HIV-positive people.
+ATF4 is a general endoplasmic reticulum stress marker.
+ATM and Rad3 related protein are critical for sensing DNA damage.
+ATM and Rad3 related protein have no role in sensing DNA damage.
+AZT given with ribavirin increases anemia.
+Activated Cdk5 phosphorylates the ATM protein in response to DNA damage.
+Activated Cdk5 regulates DNA damage-induced neuronal death.
+Activation of PPM1D enhances p53 function.
+Activation of the Rac1 homolog CED-10 kills viable cells in SRGP-1 mutant Caenorhabditis elegans.
+Activator-inhibitor pairs are provided ventrally by Xrl-sizzled.
+Active H. pylori urease has a polymeric structure consisting of five distinct subunits.
+Active Ly49Q induces neutrophil polarization.

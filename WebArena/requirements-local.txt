@@ -1,0 +1,19 @@
+# Local WebArena dependency set for this Mac workspace.
+#
+# The canonical WebArena requirements pin playwright==1.32.1, which pins
+# greenlet==2.0.1. That old greenlet release fails to build with the current
+# macOS 26 SDK on this machine. Use a newer Playwright/greenlet pair while
+# keeping the rest of the official dependency set close to upstream.
+gymnasium
+playwright>=1.56.0
+Pillow
+evaluate
+openai==0.27.0
+types-tqdm
+tiktoken
+aiolimiter
+beartype==0.12.0
+flask
+nltk
+text-generation
+transformers==4.33.2
