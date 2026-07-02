@@ -111,7 +111,12 @@ class ReadOnlyDocStore:
         out: Dict[int, dict] = {}
         for row in rows:
             doc_id = int(row["id"])
-            fh, mm = self._cache.get(Path(row["path"]))
+            path = Path(row["path"])
+            if not path.exists():
+                local_path = self.root / "data" / path.name
+                if local_path.exists():
+                    path = local_path
+            fh, mm = self._cache.get(path)
             offset = int(row["offset"])
             length = int(row["length"])
             raw = mm[offset : offset + length] if mm else fh.read(length)
