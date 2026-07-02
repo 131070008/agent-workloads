@@ -133,16 +133,17 @@ class Embedder:
         ort_inter: int,
         truncate_dim: Optional[int],
     ):
-        import onnxruntime as ort
         from sentence_transformers import SentenceTransformer
 
-        so = ort.SessionOptions()
-        so.intra_op_num_threads = int(ort_intra)
-        so.inter_op_num_threads = int(ort_inter)
-        so.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
-        so.execution_mode = ort.ExecutionMode.ORT_SEQUENTIAL
         model_kwargs = {}
         if backend == "onnx":
+            import onnxruntime as ort
+
+            so = ort.SessionOptions()
+            so.intra_op_num_threads = int(ort_intra)
+            so.inter_op_num_threads = int(ort_inter)
+            so.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
+            so.execution_mode = ort.ExecutionMode.ORT_SEQUENTIAL
             model_kwargs = {
                 "provider": provider,
                 "export": True,

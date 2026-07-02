@@ -87,6 +87,25 @@ Run the RAG agent bench with local Ollama/OpenAI-compatible endpoint:
 workloads/knowledge_qa_faiss/run_rag_agent.sh
 ```
 
+Run the self-contained GLM smoke path. This is the current quick path for
+validating retrieval plus cloud LLM generation without the external Haystack
+wrapper:
+
+```bash
+workloads/knowledge_qa_faiss/setup_glm_smoke_env.sh
+export ZHIPU_API_KEY='<your-bigmodel-key>'
+workloads/knowledge_qa_faiss/run_glm_smoke.sh
+```
+
+Defaults:
+
+```text
+LLM endpoint: https://open.bigmodel.cn/api/paas/v4/chat/completions
+LLM model: glm-4.5-air
+queries: datasets/beir_scifact_smoke/queries/evidence_5.txt, first 2 claims
+output: terminal only unless --output-jsonl is set
+```
+
 Run retrieval-only phase timing:
 
 ```bash
