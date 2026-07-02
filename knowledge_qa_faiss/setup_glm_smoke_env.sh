@@ -7,7 +7,11 @@ VENV_DIR="${VENV_DIR:-$REPO_DIR/.venv}"
 PYTHON_BIN="${PYTHON_BIN:-python3}"
 PIP_INDEX_URL="${PIP_INDEX_URL:-https://pypi.tuna.tsinghua.edu.cn/simple}"
 
-"$PYTHON_BIN" -m venv "$VENV_DIR"
+if ! "$PYTHON_BIN" -m venv "$VENV_DIR"; then
+  echo "python3 -m venv failed; falling back to user-level virtualenv." >&2
+  "$PYTHON_BIN" -m pip install --user --index-url "$PIP_INDEX_URL" virtualenv
+  "$PYTHON_BIN" -m virtualenv --clear "$VENV_DIR"
+fi
 "$VENV_DIR/bin/python" -m pip install --upgrade pip
 "$VENV_DIR/bin/python" -m pip install \
   --index-url "$PIP_INDEX_URL" \
