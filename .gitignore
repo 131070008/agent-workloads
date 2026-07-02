@@ -7,6 +7,15 @@ __pycache__/
 venv/
 .venv-*/
 
+# Local secrets and API credentials
+.env
+.env.*
+!.env.example
+*.env
+*.env.local
+.secrets/
+secrets/
+
 # Local benchmark data and generated outputs
 */results/
 */logs/

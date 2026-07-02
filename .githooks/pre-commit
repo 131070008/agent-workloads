@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+patterns=(
+  'sk-[A-Za-z0-9_-]{20,}'
+  'Authorization:[[:space:]]*Bearer[[:space:]]+[A-Za-z0-9._=-]{20,}'
+  '(ZHIPU|OPENAI|ANTHROPIC|SILICONFLOW|VC)_API_KEY=["'\'']?[A-Za-z0-9._=-]{20,}'
+  'ANTHROPIC_AUTH_TOKEN=["'\'']?[A-Za-z0-9._=-]{20,}'
+  '(api|auth|access|secret)[_-]?(key|token)["'\'']?[[:space:]]*[:=][[:space:]]*["'\'']?[A-Za-z0-9._=-]{20,}'
+)
+
+combined="$(IFS='|'; echo "${patterns[*]}")"
+tmpfile="$(mktemp "${TMPDIR:-/tmp}/agent-workloads-secret-scan.XXXXXX")"
+trap 'rm -f "$tmpfile"' EXIT
+
+if git diff --cached --unified=0 --no-ext-diff --diff-filter=ACMR |
+  grep -E '^\+[^+]' |
+  grep -E "$combined" >"$tmpfile"; then
+  echo "Potential API key or token found in staged changes; aborting commit." >&2
+  echo "Matched added lines:" >&2
+  sed 's/^/  /' "$tmpfile" >&2
+  exit 1
+fi
