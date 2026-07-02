@@ -1,0 +1,10 @@
+{
+  "query_file": "evidence_5.txt",
+  "embedding_file": "evidence_5.all-MiniLM-L6-v2.npy",
+  "model": "sentence-transformers/all-MiniLM-L6-v2",
+  "rows": 5,
+  "dimension": 384,
+  "dtype": "float32",
+  "normalized": true,
+  "purpose": "fixed smoke-test query embeddings for GLM-backed RAG smoke without installing the embedding model"
+}

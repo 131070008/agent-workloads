@@ -22,6 +22,7 @@ GLM smoke environment is ready:
   $VENV_DIR/bin/python
 
 Run:
+  $WORKLOAD_DIR/run_glm_smoke.sh --retrieval-only
   export ZHIPU_API_KEY='<your-bigmodel-key>'
   $WORKLOAD_DIR/run_glm_smoke.sh
 MSG

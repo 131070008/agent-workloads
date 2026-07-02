@@ -93,6 +93,7 @@ wrapper:
 
 ```bash
 workloads/knowledge_qa_faiss/setup_glm_smoke_env.sh
+workloads/knowledge_qa_faiss/run_glm_smoke.sh --retrieval-only
 export ZHIPU_API_KEY='<your-bigmodel-key>'
 workloads/knowledge_qa_faiss/run_glm_smoke.sh
 ```
@@ -103,8 +104,16 @@ Defaults:
 LLM endpoint: https://open.bigmodel.cn/api/paas/v4/chat/completions
 LLM model: glm-4.5-air
 queries: datasets/beir_scifact_smoke/queries/evidence_5.txt, first 2 claims
+query embeddings: datasets/beir_scifact_smoke/queries/evidence_5.all-MiniLM-L6-v2.npy
 output: terminal only unless --output-jsonl is set
 ```
+
+The GLM smoke runner defaults to fixed precomputed embeddings for the five
+SciFact smoke claims. This keeps the server smoke path light: it still uses the
+real FAISS index and SQLite docstore, builds the RAG prompt, and calls GLM, but
+does not install or load `sentence-transformers` just to validate API wiring.
+To measure query embedding itself, omit the precomputed embedding path and run
+the full embedding dependencies separately.
 
 Run retrieval-only phase timing:
 
