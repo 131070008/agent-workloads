@@ -197,6 +197,9 @@ def main() -> None:
     parser.add_argument("--max-docs", type=int, default=0)
     parser.add_argument("--torch-threads", type=int, default=48)
     parser.add_argument("--faiss-threads", type=int, default=48)
+    parser.add_argument("--workers", type=int, default=0, help="SentenceTransformer CPU worker processes")
+    parser.add_argument("--mp-chunk", type=int, default=4096, help="texts per multi-process work chunk")
+    parser.add_argument("--heartbeat-docs", type=int, default=100_000)
     parser.add_argument("--resume", action="store_true")
     args = parser.parse_args()
 
@@ -216,6 +219,10 @@ def main() -> None:
     warm = model.encode(["warmup"], convert_to_numpy=True, normalize_embeddings=True)
     dim = int(warm.shape[1])
     print(f"[model] dim={dim}", flush=True)
+    pool = None
+    if args.workers > 0:
+        print(f"[model] starting {args.workers} CPU embedding workers", flush=True)
+        pool = model.start_multi_process_pool(target_devices=["cpu"] * int(args.workers))
 
     index = load_existing_index(index_path, dim) if args.resume else load_existing_index(Path("__missing__"), dim)
     indexed_ids = existing_index_ids(index) if args.resume else set()
@@ -237,13 +244,23 @@ def main() -> None:
         if not pending_ids:
             return
         ids = np.asarray(pending_ids, dtype=np.int64)
-        embeddings = model.encode(
-            pending_texts,
-            batch_size=args.batch_size,
-            show_progress_bar=False,
-            convert_to_numpy=True,
-            normalize_embeddings=True,
-        ).astype("float32", copy=False)
+        if pool is not None:
+            embeddings = model.encode_multi_process(
+                pending_texts,
+                pool,
+                batch_size=args.batch_size,
+                chunk_size=args.mp_chunk,
+                show_progress_bar=False,
+                normalize_embeddings=True,
+            ).astype("float32", copy=False)
+        else:
+            embeddings = model.encode(
+                pending_texts,
+                batch_size=args.batch_size,
+                show_progress_bar=False,
+                convert_to_numpy=True,
+                normalize_embeddings=True,
+            ).astype("float32", copy=False)
         docstore.add_docs(pending_ids, pending_docs, docstore_ids)
         faiss.normalize_L2(embeddings)
         index.add_with_ids(embeddings, ids)
@@ -288,7 +305,7 @@ def main() -> None:
             pending_docs.append(doc)
             if len(pending_ids) >= args.batch_size:
                 flush()
-            if seen % 100_000 == 0:
+            if args.heartbeat_docs > 0 and seen % args.heartbeat_docs == 0:
                 elapsed = time.time() - started
                 rate = seen / max(elapsed, 1e-6)
                 print(
@@ -298,6 +315,8 @@ def main() -> None:
                 )
         flush(final=True)
     finally:
+        if pool is not None:
+            model.stop_multi_process_pool(pool)
         docstore.close()
 
     elapsed = time.time() - started
