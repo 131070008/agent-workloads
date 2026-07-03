@@ -192,7 +192,8 @@ def main() -> None:
     parser.add_argument("--model", default="sentence-transformers/all-MiniLM-L6-v2")
     parser.add_argument("--id-field", default="_id")
     parser.add_argument("--text-field", default="text")
-    parser.add_argument("--batch-size", type=int, default=512)
+    parser.add_argument("--batch-size", type=int, default=256, help="embedding batch size inside each worker")
+    parser.add_argument("--buffer-docs", type=int, default=32_768, help="documents to encode/add per flush")
     parser.add_argument("--save-every-docs", type=int, default=1_000_000)
     parser.add_argument("--max-docs", type=int, default=0)
     parser.add_argument("--torch-threads", type=int, default=48)
@@ -303,7 +304,7 @@ def main() -> None:
             pending_ids.append(doc_id)
             pending_texts.append(text)
             pending_docs.append(doc)
-            if len(pending_ids) >= args.batch_size:
+            if len(pending_ids) >= args.buffer_docs:
                 flush()
             if args.heartbeat_docs > 0 and seen % args.heartbeat_docs == 0:
                 elapsed = time.time() - started
