@@ -245,6 +245,8 @@ def main() -> None:
     dataset_root = root / "datasets" / "beir_scifact_smoke"
     parser = argparse.ArgumentParser(description="Evaluate local FAISS retrieval on BEIR/SciFact qrels")
     parser.add_argument("--store-dir", type=Path, default=dataset_root / "prebuilt_store")
+    parser.add_argument("--index-file-name", default="flat.index")
+    parser.add_argument("--hnsw-ef-search", type=int, default=64)
     parser.add_argument("--queries-jsonl", type=Path, default=dataset_root / "raw" / "queries.jsonl")
     parser.add_argument("--qrels-tsv", type=Path, default=dataset_root / "raw" / "qrels" / "test.tsv")
     parser.add_argument("--query-file", type=Path, default=dataset_root / "queries" / "scifact_qrels_test_20.txt")

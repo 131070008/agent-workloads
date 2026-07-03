@@ -104,6 +104,8 @@ def make_retrieval_args(args: argparse.Namespace) -> SimpleNamespace:
         ort_intra=args.ort_intra,
         ort_inter=args.ort_inter,
         truncate_dim=args.truncate_dim,
+        index_file_name=args.index_file_name,
+        hnsw_ef_search=args.hnsw_ef_search,
     )
 
 
@@ -114,7 +116,7 @@ def retrieve_with_precomputed_embeddings(
     import faiss
 
     timer = StageTimer()
-    index_path = args.store_dir / "faiss" / "flat.index"
+    index_path = args.store_dir / "faiss" / args.index_file_name
     if not index_path.exists():
         raise FileNotFoundError(f"FAISS index not found: {index_path}")
     if not args.query_embeddings_npy.exists():
@@ -123,6 +125,12 @@ def retrieve_with_precomputed_embeddings(
     faiss.omp_set_num_threads(int(args.omp_threads))
     with timer.track("index_load"):
         index = faiss.read_index(str(index_path))
+        if args.hnsw_ef_search > 0:
+            target = index
+            if hasattr(index, "index"):
+                target = faiss.downcast_index(index.index)
+            if hasattr(target, "hnsw"):
+                target.hnsw.efSearch = int(args.hnsw_ef_search)
     with timer.track("query_embedding_load"):
         embeddings = np.load(args.query_embeddings_npy).astype("float32", copy=False)
 
@@ -194,6 +202,8 @@ def main() -> None:
 
     parser = argparse.ArgumentParser(description="Run GLM-backed RAG smoke over the local SciFact FAISS store")
     parser.add_argument("--store-dir", type=Path, default=default_store)
+    parser.add_argument("--index-file-name", default=os.environ.get("INDEX_FILE_NAME", "flat.index"))
+    parser.add_argument("--hnsw-ef-search", type=int, default=int(os.environ.get("HNSW_EF_SEARCH", "64")))
     parser.add_argument("--query-file", type=Path, default=default_queries)
     parser.add_argument("--limit", type=int, default=2)
     parser.add_argument("--top-k", type=int, default=5)

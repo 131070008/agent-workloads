@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: MIT
 
-"""Build a FAISS FlatIP + SQLite docstore from a JSONL corpus.
+"""Build a FAISS index + SQLite docstore from a JSONL corpus.
 
 The store layout matches ``retrieval_only.py``:
 
   store_dir/
-    faiss/flat.index
+    faiss/flat.index or hnsw.index
     docstore/docs.sqlite3
     docstore/data/batch_*.jsonl
 
@@ -127,7 +127,39 @@ class DocStoreWriter:
         self.conn.close()
 
 
-def load_existing_index(index_path: Path, dim: int):
+def make_new_index(index_type: str, dim: int, hnsw_m: int, hnsw_ef_construction: int):
+    import faiss
+
+    if index_type == "flat":
+        base = faiss.IndexFlatIP(dim)
+    elif index_type == "hnsw":
+        base = faiss.IndexHNSWFlat(dim, int(hnsw_m), faiss.METRIC_INNER_PRODUCT)
+        base.hnsw.efConstruction = int(hnsw_ef_construction)
+    else:
+        raise ValueError(f"unsupported index type: {index_type}")
+    return faiss.IndexIDMap2(base)
+
+
+def set_hnsw_ef_search(index, ef_search: int) -> None:
+    import faiss
+
+    if ef_search <= 0:
+        return
+    target = index
+    if hasattr(index, "index"):
+        target = faiss.downcast_index(index.index)
+    if hasattr(target, "hnsw"):
+        target.hnsw.efSearch = int(ef_search)
+
+
+def load_existing_index(
+    index_path: Path,
+    dim: int,
+    index_type: str,
+    hnsw_m: int,
+    hnsw_ef_construction: int,
+    hnsw_ef_search: int,
+):
     import faiss
 
     if index_path.exists():
@@ -136,9 +168,9 @@ def load_existing_index(index_path: Path, dim: int):
             raise ValueError(f"index dim mismatch: existing={index.d}, model={dim}")
         if not isinstance(index, faiss.IndexIDMap2):
             index = faiss.IndexIDMap2(index)
+        set_hnsw_ef_search(index, hnsw_ef_search)
         return index
-    base = faiss.IndexFlatIP(dim)
-    return faiss.IndexIDMap2(base)
+    return make_new_index(index_type, dim, hnsw_m, hnsw_ef_construction)
 
 
 def existing_index_ids(index) -> set[int]:
@@ -186,12 +218,17 @@ def save_index(index, index_path: Path) -> None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Build a FAISS FlatIP/docstore from JSONL corpus")
+    parser = argparse.ArgumentParser(description="Build a FAISS/docstore from JSONL corpus")
     parser.add_argument("--corpus-jsonl", type=Path, required=True)
     parser.add_argument("--store-dir", type=Path, required=True)
     parser.add_argument("--model", default="sentence-transformers/all-MiniLM-L6-v2")
     parser.add_argument("--id-field", default="_id")
     parser.add_argument("--text-field", default="text")
+    parser.add_argument("--index-type", choices=["flat", "hnsw"], default="flat")
+    parser.add_argument("--index-file-name", help="defaults to flat.index or hnsw.index")
+    parser.add_argument("--hnsw-m", type=int, default=32)
+    parser.add_argument("--hnsw-ef-construction", type=int, default=100)
+    parser.add_argument("--hnsw-ef-search", type=int, default=64)
     parser.add_argument("--batch-size", type=int, default=256, help="embedding batch size inside each worker")
     parser.add_argument("--buffer-docs", type=int, default=32_768, help="documents to encode/add per flush")
     parser.add_argument("--save-every-docs", type=int, default=1_000_000)
@@ -213,7 +250,8 @@ def main() -> None:
     (args.store_dir / "faiss").mkdir(parents=True, exist_ok=True)
     docstore = DocStoreWriter(args.store_dir / "docstore")
     manifest_path = args.store_dir / "build_manifest.json"
-    index_path = args.store_dir / "faiss" / "flat.index"
+    index_file_name = args.index_file_name or ("hnsw.index" if args.index_type == "hnsw" else "flat.index")
+    index_path = args.store_dir / "faiss" / index_file_name
 
     print(f"[model] loading {args.model}", flush=True)
     model = SentenceTransformer(args.model, device="cpu")
@@ -225,7 +263,25 @@ def main() -> None:
         print(f"[model] starting {args.workers} CPU embedding workers", flush=True)
         pool = model.start_multi_process_pool(target_devices=["cpu"] * int(args.workers))
 
-    index = load_existing_index(index_path, dim) if args.resume else load_existing_index(Path("__missing__"), dim)
+    index = (
+        load_existing_index(
+            index_path,
+            dim,
+            args.index_type,
+            args.hnsw_m,
+            args.hnsw_ef_construction,
+            args.hnsw_ef_search,
+        )
+        if args.resume
+        else load_existing_index(
+            Path("__missing__"),
+            dim,
+            args.index_type,
+            args.hnsw_m,
+            args.hnsw_ef_construction,
+            args.hnsw_ef_search,
+        )
+    )
     indexed_ids = existing_index_ids(index) if args.resume else set()
     docstore_ids = docstore.existing_ids() if args.resume else set()
     print(f"[resume] index_ntotal={index.ntotal} indexed_ids={len(indexed_ids)} docstore_ids={len(docstore_ids)}", flush=True)
@@ -281,6 +337,11 @@ def main() -> None:
                     "corpus_jsonl": str(args.corpus_jsonl),
                     "store_dir": str(args.store_dir),
                     "model": args.model,
+                    "index_type": args.index_type,
+                    "index_file_name": index_file_name,
+                    "hnsw_m": args.hnsw_m if args.index_type == "hnsw" else None,
+                    "hnsw_ef_construction": args.hnsw_ef_construction if args.index_type == "hnsw" else None,
+                    "hnsw_ef_search": args.hnsw_ef_search if args.index_type == "hnsw" else None,
                     "dim": dim,
                     "ntotal": added,
                     "seen_lines": seen,

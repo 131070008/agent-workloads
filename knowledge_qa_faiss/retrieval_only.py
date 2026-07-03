@@ -246,10 +246,18 @@ class RetrievalOnly:
         faiss.omp_set_num_threads(int(omp_threads))
         self.store_dir = Path(store_dir)
         self.embed_batch = int(embed_batch)
-        self.index_path = self.store_dir / "faiss" / "flat.index"
+        index_file_name = getattr(args, "index_file_name", None) or "flat.index"
+        self.index_path = self.store_dir / "faiss" / index_file_name
         if not self.index_path.exists():
             raise FileNotFoundError(f"FAISS index not found: {self.index_path}")
         self.index = faiss.read_index(str(self.index_path))
+        hnsw_ef_search = int(getattr(args, "hnsw_ef_search", 0) or 0)
+        if hnsw_ef_search > 0:
+            target = self.index
+            if hasattr(self.index, "index"):
+                target = faiss.downcast_index(self.index.index)
+            if hasattr(target, "hnsw"):
+                target.hnsw.efSearch = hnsw_ef_search
         self.docstore = ReadOnlyDocStore(self.store_dir / "docstore", shard_cache_size=shard_cache, use_mmap=use_mmap)
         self._faiss = faiss
         self._args = args
@@ -306,6 +314,8 @@ def fmt_ms(seconds: float) -> str:
 def main() -> None:
     parser = argparse.ArgumentParser(description="Run retrieval-only FAISS/docstore queries")
     parser.add_argument("--store-dir", default="data/rag_smoke_store")
+    parser.add_argument("--index-file-name", default="flat.index")
+    parser.add_argument("--hnsw-ef-search", type=int, default=64)
     parser.add_argument("--model", default="sentence-transformers/all-MiniLM-L6-v2")
     parser.add_argument("--backend", default="torch", choices=["torch", "onnx"])
     parser.add_argument("--provider", default="CPUExecutionProvider")

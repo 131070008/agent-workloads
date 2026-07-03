@@ -17,6 +17,8 @@ if [[ -d "$LOCAL_EMBED_MODEL_DIR" ]]; then
   DEFAULT_MODEL="$LOCAL_EMBED_MODEL_DIR"
 fi
 MODEL="${MODEL:-$DEFAULT_MODEL}"
+INDEX_FILE_NAME="${INDEX_FILE_NAME:-flat.index}"
+HNSW_EF_SEARCH="${HNSW_EF_SEARCH:-64}"
 
 export HF_HUB_OFFLINE="${HF_HUB_OFFLINE:-1}"
 export TRANSFORMERS_OFFLINE="${TRANSFORMERS_OFFLINE:-1}"
@@ -27,5 +29,7 @@ cd "$WORK_DIR"
 
 "$PYTHON_BIN" "$HARNESS" \
   --model "$MODEL" \
+  --index-file-name "$INDEX_FILE_NAME" \
+  --hnsw-ef-search "$HNSW_EF_SEARCH" \
   --output-json "$OUTPUT_JSON" \
   "$@"

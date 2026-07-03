@@ -23,6 +23,8 @@ TOP_K="${TOP_K:-5}"
 OMP_THREADS="${OMP_THREADS:-4}"
 EMBED_BATCH="${EMBED_BATCH:-8}"
 BACKEND="${BACKEND:-torch}"
+INDEX_FILE_NAME="${INDEX_FILE_NAME:-flat.index}"
+HNSW_EF_SEARCH="${HNSW_EF_SEARCH:-64}"
 
 export HF_HUB_OFFLINE="${HF_HUB_OFFLINE:-1}"
 export TRANSFORMERS_OFFLINE="${TRANSFORMERS_OFFLINE:-1}"
@@ -32,6 +34,8 @@ cd "$WORK_DIR"
 
 "$PYTHON_BIN" "$HARNESS" \
   --store-dir "$STORE_DIR" \
+  --index-file-name "$INDEX_FILE_NAME" \
+  --hnsw-ef-search "$HNSW_EF_SEARCH" \
   --model "$MODEL" \
   --backend "$BACKEND" \
   --top-k "$TOP_K" \
