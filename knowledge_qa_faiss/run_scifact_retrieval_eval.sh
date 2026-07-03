@@ -11,7 +11,12 @@ if [[ ! -x "$PYTHON_BIN" ]]; then
 fi
 HARNESS="${HARNESS:-$WORKLOAD_DIR/evaluate_scifact_retrieval.py}"
 OUTPUT_JSON="${OUTPUT_JSON:-$WORKLOAD_DIR/results/scifact_retrieval_eval.json}"
-MODEL="${MODEL:-sentence-transformers/all-MiniLM-L6-v2}"
+LOCAL_EMBED_MODEL_DIR="${LOCAL_EMBED_MODEL_DIR:-$HOME/cunzhe/models/all-MiniLM-L6-v2}"
+DEFAULT_MODEL="sentence-transformers/all-MiniLM-L6-v2"
+if [[ -d "$LOCAL_EMBED_MODEL_DIR" ]]; then
+  DEFAULT_MODEL="$LOCAL_EMBED_MODEL_DIR"
+fi
+MODEL="${MODEL:-$DEFAULT_MODEL}"
 
 export HF_HUB_OFFLINE="${HF_HUB_OFFLINE:-1}"
 export TRANSFORMERS_OFFLINE="${TRANSFORMERS_OFFLINE:-1}"

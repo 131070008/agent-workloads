@@ -13,7 +13,12 @@ fi
 HARNESS="${HARNESS:-$CPU_CENTRIC_ROOT/haystack/retrieval.py}"
 STORE_DIR="${STORE_DIR:-$WORKLOAD_DIR/datasets/beir_scifact_smoke/prebuilt_store}"
 QUERY_FILE="${QUERY_FILE:-$WORKLOAD_DIR/datasets/beir_scifact_smoke/queries/evidence_5.txt}"
-MODEL="${MODEL:-sentence-transformers/all-MiniLM-L6-v2}"
+LOCAL_EMBED_MODEL_DIR="${LOCAL_EMBED_MODEL_DIR:-$HOME/cunzhe/models/all-MiniLM-L6-v2}"
+DEFAULT_MODEL="sentence-transformers/all-MiniLM-L6-v2"
+if [[ -d "$LOCAL_EMBED_MODEL_DIR" ]]; then
+  DEFAULT_MODEL="$LOCAL_EMBED_MODEL_DIR"
+fi
+MODEL="${MODEL:-$DEFAULT_MODEL}"
 
 LLM_API_URL="${LLM_API_URL:-http://127.0.0.1:11434/v1}"
 LLM_MODEL="${LLM_MODEL:-qwen3.6:27b}"
