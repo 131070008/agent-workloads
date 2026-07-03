@@ -248,7 +248,7 @@ def main() -> None:
     parser.add_argument("--queries-jsonl", type=Path, default=dataset_root / "raw" / "queries.jsonl")
     parser.add_argument("--qrels-tsv", type=Path, default=dataset_root / "raw" / "qrels" / "test.tsv")
     parser.add_argument("--query-file", type=Path, default=dataset_root / "queries" / "scifact_qrels_test_20.txt")
-    parser.add_argument("--model", default="/Users/cztian/.cache/huggingface/hub/models--sentence-transformers--all-MiniLM-L6-v2/snapshots/1110a243fdf4706b3f48f1d95db1a4f5529b4d41")
+    parser.add_argument("--model", default="sentence-transformers/all-MiniLM-L6-v2")
     parser.add_argument("--backend", default="torch", choices=["torch", "onnx"])
     parser.add_argument("--provider", default="CPUExecutionProvider")
     parser.add_argument("--truncate-dim", type=int, default=None)

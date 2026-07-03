@@ -1,14 +1,19 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-WORK_DIR="${WORK_DIR:-$ROOT_DIR}"
+WORKLOAD_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_DIR="$(cd "$WORKLOAD_DIR/.." && pwd)"
+WORK_DIR="${WORK_DIR:-$REPO_DIR}"
+CPU_CENTRIC_ROOT="${CPU_CENTRIC_ROOT:-$REPO_DIR/../cpu-centric-agentic-ai}"
 
-PYTHON_BIN="${PYTHON_BIN:-/Users/cztian/workspace/myself/agent/cpu-centric-agentic-ai/.venv/bin/python}"
-HARNESS="${HARNESS:-$ROOT_DIR/cpu-centric-agentic-ai/haystack/retrieval.py}"
-STORE_DIR="${STORE_DIR:-$ROOT_DIR/workloads/knowledge_qa_faiss/datasets/beir_scifact_smoke/prebuilt_store}"
-QUERY_FILE="${QUERY_FILE:-$ROOT_DIR/workloads/knowledge_qa_faiss/datasets/beir_scifact_smoke/queries/evidence_5.txt}"
-MODEL="${MODEL:-/Users/cztian/.cache/huggingface/hub/models--sentence-transformers--all-MiniLM-L6-v2/snapshots/1110a243fdf4706b3f48f1d95db1a4f5529b4d41}"
+PYTHON_BIN="${PYTHON_BIN:-$REPO_DIR/.venv/bin/python}"
+if [[ ! -x "$PYTHON_BIN" ]]; then
+  PYTHON_BIN="${PYTHON_BIN_FALLBACK:-python3}"
+fi
+HARNESS="${HARNESS:-$CPU_CENTRIC_ROOT/haystack/retrieval.py}"
+STORE_DIR="${STORE_DIR:-$WORKLOAD_DIR/datasets/beir_scifact_smoke/prebuilt_store}"
+QUERY_FILE="${QUERY_FILE:-$WORKLOAD_DIR/datasets/beir_scifact_smoke/queries/evidence_5.txt}"
+MODEL="${MODEL:-sentence-transformers/all-MiniLM-L6-v2}"
 
 LLM_API_URL="${LLM_API_URL:-http://127.0.0.1:11434/v1}"
 LLM_MODEL="${LLM_MODEL:-qwen3.6:27b}"
