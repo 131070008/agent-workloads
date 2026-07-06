@@ -115,6 +115,56 @@ does not install or load `sentence-transformers` just to validate API wiring.
 To measure query embedding itself, omit the precomputed embedding path and run
 the full embedding dependencies separately.
 
+Run one MS MARCO HNSW resident-service case on the shared server. This path is
+closer to the flow used for CPU tracing: the retriever stays hot on core 0,
+while the agent process runs on core 1 and calls the retriever plus GLM.
+
+```bash
+cd ~/cunzhe/agent-workloads
+git pull
+
+mkdir -p ~/cunzhe/datasets/msmarco/logs
+tmux kill-session -t qa_retriever_case 2>/dev/null || true
+tmux new-session -d -s qa_retriever_case \
+  'cd ~/cunzhe/agent-workloads && RETRIEVER_CORE=0 knowledge_qa_faiss/run_msmarco_retriever_service.sh > ~/cunzhe/datasets/msmarco/logs/qa_retriever_case.log 2>&1'
+
+for i in $(seq 1 90); do
+  grep -q '\[retriever\] READY' ~/cunzhe/datasets/msmarco/logs/qa_retriever_case.log && break
+  sleep 2
+done
+tail -n 40 ~/cunzhe/datasets/msmarco/logs/qa_retriever_case.log
+
+set -a
+. ~/cunzhe/.secrets/zhipu.env
+set +a
+AGENT_CORE=1 knowledge_qa_faiss/run_msmarco_agent_case.sh
+```
+
+Useful variants:
+
+```bash
+# Only test local CPU-side flow: agent -> retriever -> prompt, no cloud LLM.
+AGENT_CORE=1 knowledge_qa_faiss/run_msmarco_agent_case.sh --retrieval-only
+
+# Change the query.
+QUERY='what causes vector search latency' AGENT_CORE=1 knowledge_qa_faiss/run_msmarco_agent_case.sh
+
+# Stop the resident retriever.
+tmux kill-session -t qa_retriever_case
+```
+
+Default server-side MS MARCO settings:
+
+```text
+store: ~/cunzhe/datasets/msmarco/faiss_hnsw_m48_efc500_store
+index: hnsw.index
+HNSW efSearch: 200
+retriever core: RETRIEVER_CORE=0
+agent core: AGENT_CORE=1
+retriever endpoint: http://127.0.0.1:18080
+LLM model: glm-4.5-air
+```
+
 Run retrieval-only phase timing:
 
 ```bash
