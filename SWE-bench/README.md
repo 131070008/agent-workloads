@@ -80,6 +80,61 @@ Run the default smoke case:
 workloads/SWE-bench/run_swe_lite_smoke.sh
 ```
 
+Run one official SWE-bench Lite case from the local 300-case test split. This
+does not use the 20-case smoke manifest.
+
+```bash
+cd ~/cunzhe/agent-workloads
+set -a
+. ~/cunzhe/.secrets/zhipu.env
+set +a
+
+SWE_INSTANCE_ID=astropy__astropy-12907 \
+SWE_OUTPUT_DIR=~/cunzhe/swe_runs/swe_lite_official_one \
+SWE_STEP_LIMIT=40 \
+SWE_AGENT_CORE=1 \
+SWE_CONTAINER_CPUSET=2 \
+SWE-bench/run_swe_lite_official_case.sh
+```
+
+Evaluate the generated patch with the official SWE-bench harness:
+
+```bash
+cd ~/cunzhe/agent-workloads
+.venv-swe/bin/python - <<'PY'
+import json
+from pathlib import Path
+from datasets import Dataset
+
+repo = Path.home() / "cunzhe/agent-workloads"
+out = Path.home() / "cunzhe/swe_runs/swe_lite_official_one"
+iid = "astropy__astropy-12907"
+ds = Dataset.from_file(str(repo / "SWE-bench/datasets/swe_bench_lite_smoke/raw/swe-bench_lite-test.arrow"))
+row = next(dict(r) for r in ds if r["instance_id"] == iid)
+(out / "dataset_one.json").write_text(json.dumps([row], ensure_ascii=False, indent=2), encoding="utf-8")
+PY
+
+.venv-swe/bin/python -m swebench.harness.run_evaluation \
+  --dataset_name ~/cunzhe/swe_runs/swe_lite_official_one/dataset_one.json \
+  --split test \
+  --instance_ids astropy__astropy-12907 \
+  --predictions_path ~/cunzhe/swe_runs/swe_lite_official_one/preds.json \
+  --max_workers 1 \
+  --timeout 1800 \
+  --run_id glm_air_astropy12907 \
+  --namespace swebench \
+  --cache_level env \
+  --clean false \
+  --report_dir ~/cunzhe/swe_runs/swe_lite_official_one/eval_report
+```
+
+CPU placement knobs:
+
+```text
+SWE_AGENT_CORE=1          pins the host-side mini-SWE-agent Python process.
+SWE_CONTAINER_CPUSET=2    passes --cpuset-cpus=2 to docker run for the sandbox.
+```
+
 ## Notes
 
 The harness currently uses the mini-SWE-agent runner already present under
