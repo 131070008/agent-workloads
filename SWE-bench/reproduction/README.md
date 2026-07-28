@@ -171,6 +171,32 @@ python3 analyze_three_platforms.py \
 
 分析器强制检查三平台的 30 个 `instance_id` 和每条 case 的 `step_count` 完全一致，随后输出逐 case 绝对值、三组成对比值、阶段聚合、K16/K1 扩展性、JSON 汇总和中文 Markdown 报告。
 
+## 8. 发布到私有 GitHub Release
+
+镜像包约 41 GiB，不应提交进 Git 历史。GitHub Release 的单个附件必须小于 2 GiB，因此先把完整目录流式切成 1900 MiB 分卷：
+
+```bash
+./06_prepare_github_release_assets.sh \
+  /path/to/swe_flat_bundle_20260727 \
+  /path/to/swe_flat_bundle_20260727_release
+```
+
+脚本生成分卷、`SHA256SUMS` 和 `RESTORE.txt`，并验证拼接后的 tar 数据流可以读取。完成 GitHub CLI 授权后逐文件上传：
+
+```bash
+./07_upload_github_release_assets.sh \
+  /path/to/swe_flat_bundle_20260727_release
+```
+
+上传脚本默认发布到私有仓库 `131070008/agent-workloads` 的 `swe-images-20260727` Release。脚本会跳过已经成功上传的同名附件，网络中断后重新执行即可继续。
+
+下载全部附件并校验后，恢复原目录：
+
+```bash
+shasum -a 256 -c SHA256SUMS
+cat swe_flat_bundle_20260727.tar.part.* | tar -xf -
+```
+
 ## 关键可比性说明
 
 - `zuchongzhi` 与 `shenkuo` 使用同一份 flat-rootfs 包，镜像布局一致，可直接比较 Hygon 7490 与 7480。
