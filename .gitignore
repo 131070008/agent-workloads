@@ -20,6 +20,7 @@ secrets/
 */results/
 */logs/
 */.cache/
+/experiment_results/
 
 # Large generated/intermediate artifacts
 *.log

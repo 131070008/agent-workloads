@@ -38,6 +38,14 @@ def main() -> None:
     run_args = ["--rm"]
     if cpuset := os.environ.get("SWE_CONTAINER_CPUSET", "").strip():
         run_args.append(f"--cpuset-cpus={cpuset}")
+    if cgroup_parent := os.environ.get("SWE_CONTAINER_CGROUP_PARENT", "").strip():
+        run_args.append(f"--cgroup-parent={cgroup_parent}")
+    if memory := os.environ.get("SWE_CONTAINER_MEMORY", "").strip():
+        run_args.append(f"--memory={memory}")
+    if memory_swap := os.environ.get("SWE_CONTAINER_MEMORY_SWAP", "").strip():
+        run_args.append(f"--memory-swap={memory_swap}")
+    if pids_limit := os.environ.get("SWE_CONTAINER_PIDS_LIMIT", "").strip():
+        run_args.append(f"--pids-limit={pids_limit}")
 
     config = recursive_merge(
         get_config_from_spec(os.environ.get("SWE_CONFIG", "swebench_backticks.yaml")),
@@ -53,13 +61,14 @@ def main() -> None:
             },
             "model": {
                 "model_name": os.environ.get("SWE_MODEL", "openai/glm-4.5-air"),
-                "model_class": "litellm_textbased",
+                "model_class": os.environ.get("SWE_MODEL_CLASS", "litellm_textbased"),
                 "cost_tracking": "ignore_errors",
                 "model_kwargs": {
                     "temperature": float(os.environ.get("SWE_TEMPERATURE", "0")),
                     "max_tokens": int(os.environ.get("SWE_MAX_TOKENS", "4096")),
                     "drop_params": True,
                     "api_base": os.environ.get("OPENAI_API_BASE", "https://open.bigmodel.cn/api/paas/v4"),
+                    "timeout": float(os.environ.get("SWE_LLM_TIMEOUT_SECONDS", "300")),
                 },
             },
         },
