@@ -197,6 +197,33 @@ shasum -a 256 -c SHA256SUMS
 cat swe_flat_bundle_20260727.tar.part.* | tar -xf -
 ```
 
+### AWS-38 增量镜像与公开轨迹
+
+新增 8 个 flat-rootfs 镜像和完整 38 条 AWS SWE-agent 轨迹位于 Release
+`swe-aws38-20260812`。它不重复包含原有 30 个镜像。在空间较大的内网数据盘执行：
+
+```bash
+DATA_ROOT=/data/cunzhe \
+  ./11_download_aws38_increment.sh all
+```
+
+脚本串行下载，固定使用 `/usr/bin/curl --http1.1 -C -`。网络中断后重新运行同一命令，
+会跳过 `.done` 文件并从未完成文件的现有字节继续；恢复前会校验全部 SHA256。
+
+若要分阶段执行：
+
+```bash
+./11_download_aws38_increment.sh download
+./11_download_aws38_increment.sh verify
+./11_download_aws38_increment.sh restore
+```
+
+恢复后加载新增 8 个镜像：
+
+```bash
+sudo python3 /data/cunzhe/swe_flat_bundle_aws_extra8_20260812/load_flat_bundle.py
+```
+
 ## 关键可比性说明
 
 - `zuchongzhi` 与 `shenkuo` 使用同一份 flat-rootfs 包，镜像布局一致，可直接比较 Hygon 7490 与 7480。
