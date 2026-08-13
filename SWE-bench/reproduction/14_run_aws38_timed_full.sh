@@ -9,6 +9,7 @@ TIMESTAMP=${TIMESTAMP:-$(date +%Y%m%d_%H%M%S)}
 HOST_LABEL=${HOST_LABEL:-$(hostname -s)}
 RUN_DIR=${RUN_DIR:-$CUNZHE_ROOT/swe_runs/aws38_timed_full_${HOST_LABEL}_${TIMESTAMP}}
 SWE_CPUSET=${SWE_CPUSET:-}
+CASE_TIMEOUT_SECONDS=${CASE_TIMEOUT_SECONDS:-1800}
 CASE_ROOT=$RUN_DIR/cases
 
 test -x "$RUNNER"
@@ -47,6 +48,7 @@ fi
 printf 'run_dir\t%s\ncase_count\t%s\nhost\t%s\nstarted_at\t%s\n' \
   "$RUN_DIR" "${#cases[@]}" "$HOST_LABEL" "$(date -Is)" > "$RUN_DIR/run_info.tsv"
 printf 'swe_cpuset\t%s\n' "${SWE_CPUSET:-unrestricted}" >> "$RUN_DIR/run_info.tsv"
+printf 'case_timeout_seconds\t%s\n' "$CASE_TIMEOUT_SECONDS" >> "$RUN_DIR/run_info.tsv"
 
 for instance_id in "${cases[@]}"; do
   if awk -F '\t' -v iid="$instance_id" 'NR > 1 && $1 == iid {found=1} END {exit !found}' "$status_file"; then
@@ -58,17 +60,23 @@ for instance_id in "${cases[@]}"; do
   case_dir=$CASE_ROOT/$instance_id
   mkdir -p "$case_dir"
   start=$(date +%s)
+  run_label="golden36-$$-$instance_id"
   set +e
   if [[ -n "$SWE_CPUSET" ]]; then
     SWE_TIMING_PROBE="$PROBE" OUTPUT_ROOT="$case_dir" SWE_CPUSET="$SWE_CPUSET" \
-      taskset --cpu-list "$SWE_CPUSET" "$RUNNER" "$instance_id" \
+      SWE_RUN_LABEL="$run_label" timeout --signal=TERM --kill-after=30 \
+      "$CASE_TIMEOUT_SECONDS" taskset --cpu-list "$SWE_CPUSET" "$RUNNER" "$instance_id" \
       >> "$RUN_DIR/batch.log" 2>&1
   else
-    SWE_TIMING_PROBE="$PROBE" OUTPUT_ROOT="$case_dir" \
+    SWE_TIMING_PROBE="$PROBE" OUTPUT_ROOT="$case_dir" SWE_RUN_LABEL="$run_label" \
+      timeout --signal=TERM --kill-after=30 "$CASE_TIMEOUT_SECONDS" \
       "$RUNNER" "$instance_id" >> "$RUN_DIR/batch.log" 2>&1
   fi
   exit_code=$?
   set -e
+  while IFS= read -r container_id; do
+    [[ -z "$container_id" ]] || docker kill "$container_id" >/dev/null 2>&1 || true
+  done < <(docker ps -q --filter "label=com.hygon.swe-golden-run=$run_label")
   elapsed=$(( $(date +%s) - start ))
 
   result_dir=""

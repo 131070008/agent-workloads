@@ -17,6 +17,7 @@ SHARED_REX=${SHARED_REX:-$CUNZHE_ROOT/swerex-runtime-1.1.0-shared}
 TOOL_WHEELHOUSE=${TOOL_WHEELHOUSE:-$CUNZHE_ROOT/swe-tool-wheelhouse-v1.0.0}
 OUTPUT_ROOT=${OUTPUT_ROOT:-$CUNZHE_ROOT/swe_runs/aws38_replay}
 SWE_CPUSET=${SWE_CPUSET:-}
+SWE_RUN_LABEL=${SWE_RUN_LABEL:-}
 
 test -f "$MANIFEST"
 test -d "$SWEAGENT_SOURCE/tools"
@@ -69,6 +70,7 @@ SWEAGENT_SOURCE="$SWEAGENT_SOURCE" \
 SHARED_REX="$SHARED_REX" \
 TOOL_WHEELHOUSE="$TOOL_WHEELHOUSE" \
 SWE_CPUSET="$SWE_CPUSET" \
+SWE_RUN_LABEL="$SWE_RUN_LABEL" \
 python3 - <<'PY'
 import json
 import os
@@ -79,6 +81,7 @@ sweagent_source = os.environ["SWEAGENT_SOURCE"]
 shared_rex = os.environ["SHARED_REX"]
 tool_wheelhouse = os.environ["TOOL_WHEELHOUSE"]
 cpu_set = os.environ.get("SWE_CPUSET", "")
+run_label = os.environ.get("SWE_RUN_LABEL", "")
 
 data = json.load(open(source))
 config = data["replay_config"]
@@ -119,6 +122,8 @@ docker_args.extend([
 ])
 if cpu_set:
     docker_args.append(f"--cpuset-cpus={cpu_set}")
+if run_label:
+    docker_args.append(f"--label=com.hygon.swe-golden-run={run_label}")
 
 data["replay_config"] = json.dumps(config) if was_string else config
 with open(dest, "w") as handle:

@@ -243,6 +243,26 @@ DATA_ROOT=/data/cunzhe \
 
 成功标志为 `VALIDATION=PASS`。随后前台执行一次完整 Golden36：
 
+若要用于单核CPU平台对比，Host Agent与Docker内全部ToolCall应固定到同一个逻辑CPU。
+下面的入口默认使用CPU 2；Docker daemon与containerd控制面仍由系统自由调度：
+
+```bash
+DATA_ROOT=/data/cunzhe CPU_CORE=2 \
+  ./17_run_aws36_golden_single_cpu.sh
+```
+
+正式Golden数据运行两轮，并为每轮建立独立结果目录：
+
+```bash
+nohup env DATA_ROOT=/data/cunzhe CPU_CORE=2 ROUNDS=2 \
+  ./18_run_aws36_golden_single_cpu_twice.sh \
+  > /data/cunzhe/swe_runs/golden36_single_cpu_twice.log 2>&1 < /dev/null &
+```
+
+默认每条case超时为1800秒，可通过 `CASE_TIMEOUT_SECONDS` 修改。每轮记录
+`case_phases.csv`、`tool_calls.csv`、`category_summary.csv`、`status.tsv` 和
+`run_info.tsv`；后者包含实际 `swe_cpuset`。运行前应确认目标逻辑CPU及其SMT兄弟线程空闲。
+
 ```bash
 DATA_ROOT=/data/cunzhe \
   SWE-bench/reproduction/16_run_aws36_golden.sh

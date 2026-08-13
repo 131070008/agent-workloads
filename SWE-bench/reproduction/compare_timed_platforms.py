@@ -39,13 +39,14 @@ def main() -> None:
     parser.add_argument("--baseline-name", default="baseline")
     parser.add_argument("--candidate-name", default="candidate")
     parser.add_argument("--output-dir", type=Path, required=True)
+    parser.add_argument("--expected-cases", type=int, default=38)
     args = parser.parse_args()
 
     baseline = read_cases(args.baseline / "case_phases.csv")
     candidate = read_cases(args.candidate / "case_phases.csv")
     case_ids = sorted(set(baseline) & set(candidate))
-    if len(case_ids) != 38:
-        raise SystemExit(f"Expected 38 paired cases, found {len(case_ids)}")
+    if len(case_ids) != args.expected_cases:
+        raise SystemExit(f"Expected {args.expected_cases} paired cases, found {len(case_ids)}")
 
     args.output_dir.mkdir(parents=True, exist_ok=True)
     paired_rows: list[dict[str, str | float | int]] = []

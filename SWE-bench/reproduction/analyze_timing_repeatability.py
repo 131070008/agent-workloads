@@ -25,6 +25,7 @@ def main() -> None:
     parser.add_argument("--repeat-low", type=float, default=0.85)
     parser.add_argument("--repeat-high", type=float, default=1.18)
     parser.add_argument("--cross-change", type=float, default=0.15)
+    parser.add_argument("--expected-cases", type=int, default=38)
     args = parser.parse_args()
 
     a1 = read(args.a_run1 / "case_phases.csv")
@@ -32,8 +33,8 @@ def main() -> None:
     b1 = read(args.b_run1 / "case_phases.csv")
     b2 = read(args.b_run2 / "case_phases.csv")
     ids = sorted(set(a1) & set(a2) & set(b1) & set(b2))
-    if len(ids) != 38:
-        raise SystemExit(f"Expected 38 common cases, found {len(ids)}")
+    if len(ids) != args.expected_cases:
+        raise SystemExit(f"Expected {args.expected_cases} common cases, found {len(ids)}")
 
     rows = []
     for iid in ids:
