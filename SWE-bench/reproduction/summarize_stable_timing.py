@@ -39,10 +39,13 @@ def main() -> None:
     parser.add_argument("--b-name", default="b")
     parser.add_argument("--exclude", nargs="*", default=[])
     parser.add_argument("--output-dir", type=Path, required=True)
+    parser.add_argument("--expected-cases", type=int)
     args = parser.parse_args()
 
     sets = {name: load(getattr(args, name) / "case_phases.csv") for name in ("a1", "a2", "b1", "b2")}
     ids = sorted(set.intersection(*(set(items) for items in sets.values())) - set(args.exclude))
+    if args.expected_cases is not None and len(ids) != args.expected_cases:
+        raise SystemExit(f"Expected {args.expected_cases} common cases, found {len(ids)}")
     args.output_dir.mkdir(parents=True, exist_ok=True)
 
     rows = []
