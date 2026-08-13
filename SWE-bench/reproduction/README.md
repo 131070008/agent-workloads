@@ -224,6 +224,50 @@ DATA_ROOT=/data/cunzhe \
 sudo python3 /data/cunzhe/swe_flat_bundle_aws_extra8_20260812/load_flat_bundle.py
 ```
 
+### Golden36 单平台回放
+
+CPU 平台性能对比固定使用 AWS-38 中的 36 条轨迹，排除包含外部网络访问的：
+
+- `psf__requests-2674`
+- `pytest-dev__pytest-11148`
+
+默认数据根目录为 `/data/cunzhe`。更新仓库后先审计环境：
+
+```bash
+cd /data/cunzhe/agent-workloads
+git pull --ff-only
+
+DATA_ROOT=/data/cunzhe \
+  SWE-bench/reproduction/15_validate_aws36_golden.sh
+```
+
+成功标志为 `VALIDATION=PASS`。随后前台执行一次完整 Golden36：
+
+```bash
+DATA_ROOT=/data/cunzhe \
+  SWE-bench/reproduction/16_run_aws36_golden.sh
+```
+
+建议在 `tmux` 内前台运行。若放到后台：
+
+```bash
+mkdir -p /data/cunzhe/swe_runs
+nohup env DATA_ROOT=/data/cunzhe \
+  /data/cunzhe/agent-workloads/SWE-bench/reproduction/16_run_aws36_golden.sh \
+  > /data/cunzhe/swe_runs/golden36_launcher.log 2>&1 < /dev/null &
+echo $!
+```
+
+运行目录会打印为 `RUN_DIR=...`，其中主要结果为：
+
+- `status.tsv`：每条 case 的完成状态和 ToolCall 完整性；
+- `case_phases.csv`：生命周期阶段时间；
+- `tool_calls.csv`：逐 ToolCall 时间、类别和命令；
+- `category_summary.csv`：ToolCall 分类聚合；
+- `final_summary.txt`：36 条最终通过统计。
+
+这套回放不读取云端 API Key，不调用 LLM；所有动作来自固定 trajectory。
+
 ## 关键可比性说明
 
 - `zuchongzhi` 与 `shenkuo` 使用同一份 flat-rootfs 包，镜像布局一致，可直接比较 Hygon 7490 与 7480。

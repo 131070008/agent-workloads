@@ -1,0 +1,3 @@
+# Excluded from CPU platform Wall comparison because ToolCalls use external network.
+psf__requests-2674
+pytest-dev__pytest-11148
