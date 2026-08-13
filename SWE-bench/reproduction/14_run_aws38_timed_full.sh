@@ -8,6 +8,7 @@ MANIFEST=${AWS38_MANIFEST:-$CUNZHE_ROOT/swe_runs/aws_public_traces/20250226_swea
 TIMESTAMP=${TIMESTAMP:-$(date +%Y%m%d_%H%M%S)}
 HOST_LABEL=${HOST_LABEL:-$(hostname -s)}
 RUN_DIR=${RUN_DIR:-$CUNZHE_ROOT/swe_runs/aws38_timed_full_${HOST_LABEL}_${TIMESTAMP}}
+SWE_CPUSET=${SWE_CPUSET:-}
 CASE_ROOT=$RUN_DIR/cases
 
 test -x "$RUNNER"
@@ -45,6 +46,7 @@ if [[ ! -f "$status_file" ]]; then
 fi
 printf 'run_dir\t%s\ncase_count\t%s\nhost\t%s\nstarted_at\t%s\n' \
   "$RUN_DIR" "${#cases[@]}" "$HOST_LABEL" "$(date -Is)" > "$RUN_DIR/run_info.tsv"
+printf 'swe_cpuset\t%s\n' "${SWE_CPUSET:-unrestricted}" >> "$RUN_DIR/run_info.tsv"
 
 for instance_id in "${cases[@]}"; do
   if awk -F '\t' -v iid="$instance_id" 'NR > 1 && $1 == iid {found=1} END {exit !found}' "$status_file"; then
@@ -57,8 +59,14 @@ for instance_id in "${cases[@]}"; do
   mkdir -p "$case_dir"
   start=$(date +%s)
   set +e
-  SWE_TIMING_PROBE="$PROBE" OUTPUT_ROOT="$case_dir" \
-    "$RUNNER" "$instance_id" >> "$RUN_DIR/batch.log" 2>&1
+  if [[ -n "$SWE_CPUSET" ]]; then
+    SWE_TIMING_PROBE="$PROBE" OUTPUT_ROOT="$case_dir" SWE_CPUSET="$SWE_CPUSET" \
+      taskset --cpu-list "$SWE_CPUSET" "$RUNNER" "$instance_id" \
+      >> "$RUN_DIR/batch.log" 2>&1
+  else
+    SWE_TIMING_PROBE="$PROBE" OUTPUT_ROOT="$case_dir" \
+      "$RUNNER" "$instance_id" >> "$RUN_DIR/batch.log" 2>&1
+  fi
   exit_code=$?
   set -e
   elapsed=$(( $(date +%s) - start ))

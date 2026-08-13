@@ -11,6 +11,8 @@ SWEAGENT_SOURCE=${SWEAGENT_SOURCE:-$RUNTIME_ROOT/swe-agent-v1.0.0-src}
 SWEAGENT_VENV=${SWEAGENT_VENV:-$RUNTIME_ROOT/sweagent-v1.0.0-venv}
 SHARED_REX=${SHARED_REX:-$RUNTIME_ROOT/swerex-runtime-1.1.0-shared}
 TOOL_WHEELHOUSE=${TOOL_WHEELHOUSE:-$RUNTIME_ROOT/swe-tool-wheelhouse-v1.0.0}
+SWE_CPUSET=${SWE_CPUSET:-}
+CASE_IDS=${CASE_IDS:-}
 REPRO_DIR=$REPO_ROOT/SWE-bench/reproduction
 TIMESTAMP=${TIMESTAMP:-$(date +%Y%m%d_%H%M%S)}
 RUN_DIR=${RUN_DIR:-$DATA_ROOT/swe_runs/aws36_golden_$(hostname -s)_$TIMESTAMP}
@@ -27,7 +29,8 @@ cp "$REPRO_DIR/edit_anthropic_install_offline.sh" \
   "$SWEAGENT_SOURCE/tools/edit_anthropic/install.sh"
 chmod +x "$SWEAGENT_SOURCE/tools/edit_anthropic/install.sh"
 
-case_ids=$(MANIFEST="$MANIFEST" EXCLUDE_FILE="$REPRO_DIR/golden36_excluded_cases.txt" python3 - <<'PY'
+if [[ -z "$CASE_IDS" ]]; then
+  CASE_IDS=$(MANIFEST="$MANIFEST" EXCLUDE_FILE="$REPRO_DIR/golden36_excluded_cases.txt" python3 - <<'PY'
 import json
 import os
 from pathlib import Path
@@ -40,10 +43,13 @@ excluded = {
 manifest = json.load(open(os.environ["MANIFEST"]))
 print(" ".join(case["instance_id"] for case in manifest["cases"] if case["instance_id"] not in excluded))
 PY
-)
+  )
+fi
+case_count=$(wc -w <<< "$CASE_IDS")
 
 echo "RUN_DIR=$RUN_DIR"
-echo "CASE_COUNT=36"
+echo "CASE_COUNT=$case_count"
+echo "SWE_CPUSET=${SWE_CPUSET:-unrestricted}"
 
 CUNZHE_ROOT="$DATA_ROOT" \
 RUNNER="$REPRO_DIR/10_run_aws38_replay_case.sh" \
@@ -54,8 +60,9 @@ SWEAGENT_SOURCE="$SWEAGENT_SOURCE" \
 SWEAGENT_VENV="$SWEAGENT_VENV" \
 SHARED_REX="$SHARED_REX" \
 TOOL_WHEELHOUSE="$TOOL_WHEELHOUSE" \
+SWE_CPUSET="$SWE_CPUSET" \
 RUN_DIR="$RUN_DIR" \
-CASE_IDS="$case_ids" \
+CASE_IDS="$CASE_IDS" \
   "$REPRO_DIR/14_run_aws38_timed_full.sh"
 
 echo "GOLDEN36_COMPLETE=$RUN_DIR"
