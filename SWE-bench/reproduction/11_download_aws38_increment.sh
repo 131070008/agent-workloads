@@ -69,7 +69,7 @@ restore() {
   echo "EXTRA8_IMAGES=$DATA_ROOT/swe_flat_bundle_aws_extra8_20260812"
   echo "AWS38_TRACES=$DATA_ROOT/swe_runs/aws_public_traces/20250226_sweagent_claude-3-7-sonnet-20250219"
   echo "Load images with:"
-  echo "  sudo python3 $DATA_ROOT/swe_flat_bundle_aws_extra8_20260812/load_flat_bundle.py"
+  echo "  sudo python3 $DATA_ROOT/swe_flat_bundle_aws_extra8_20260812/load_flat_bundle.py --bundle-dir $DATA_ROOT/swe_flat_bundle_aws_extra8_20260812"
 }
 
 case "$ACTION" in

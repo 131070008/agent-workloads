@@ -221,7 +221,8 @@ DATA_ROOT=/data/cunzhe \
 恢复后加载新增 8 个镜像：
 
 ```bash
-sudo python3 /data/cunzhe/swe_flat_bundle_aws_extra8_20260812/load_flat_bundle.py
+sudo python3 /data/cunzhe/swe_flat_bundle_aws_extra8_20260812/load_flat_bundle.py \
+  --bundle-dir /data/cunzhe/swe_flat_bundle_aws_extra8_20260812
 ```
 
 ### Golden36 单平台回放
@@ -287,6 +288,9 @@ echo $!
 - `final_summary.txt`：36 条最终通过统计。
 
 这套回放不读取云端 API Key，不调用 LLM；所有动作来自固定 trajectory。
+
+Edison 上从代理下载、镜像导入、runtime 恢复、权限修复、绑核冒烟到正式双轮运行的完整流程，见
+[`EDISON_GOLDEN36_RUNBOOK.md`](EDISON_GOLDEN36_RUNBOOK.md)。
 
 ## 关键可比性说明
 
