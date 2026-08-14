@@ -260,6 +260,17 @@ nohup env DATA_ROOT=/data/cunzhe CPU_CORE=2 ROUNDS=2 \
   > /data/cunzhe/swe_runs/golden36_single_cpu_twice.log 2>&1 < /dev/null &
 ```
 
+两轮均通过后，将第一轮整理为正式 Golden 数据；第二轮只用于复核，不参与平均：
+
+```bash
+SERIES=$(ls -dt /data/cunzhe/swe_runs/aws36_golden_single_cpu2_twice_* | head -1)
+python3 ./20_extract_aws36_golden.py --series-dir "$SERIES"
+cat "$SERIES/golden/golden_summary.txt"
+```
+
+输出目录 `$SERIES/golden/` 包含正式逐 case、逐 ToolCall、分类与阶段统计 CSV，
+以及校验摘要和 `SHA256SUMS`。这些数据全部来自第一轮，不包含 R1/R2 对比列。
+
 默认每条case超时为1800秒，可通过 `CASE_TIMEOUT_SECONDS` 修改。每轮记录
 `case_phases.csv`、`tool_calls.csv`、`category_summary.csv`、`status.tsv` 和
 `run_info.tsv`；后者包含实际 `swe_cpuset`。运行前应确认目标逻辑CPU及其SMT兄弟线程空闲。

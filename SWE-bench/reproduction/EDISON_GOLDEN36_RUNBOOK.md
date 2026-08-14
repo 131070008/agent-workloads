@@ -348,6 +348,27 @@ incomplete=0
 fail=0
 ```
 
+两轮通过后，将第一轮固化为正式 Golden 数据。第二轮只参与验收，不进入性能表格，
+也不与第一轮求平均：
+
+```bash
+python3 /data/cunzhe/agent-workloads/SWE-bench/reproduction/20_extract_aws36_golden.py \
+  --series-dir "$SERIES"
+
+cat "$SERIES/golden/golden_summary.txt"
+```
+
+成功标志为 `GOLDEN_EXPORT=PASS`。整理结果位于 `$SERIES/golden/`：
+
+- `golden_case_phases.csv`：36 条正式 Golden case 的生命周期阶段时延。
+- `golden_tool_calls.csv`：1270 次正式 Golden ToolCall 的命令、分类和细粒度时延。
+- `golden_category_summary.csv`：ToolCall 分类聚合。
+- `golden_phase_summary.csv`：各阶段的总计、均值、中位数、P90、最小值和最大值。
+- `golden_status.tsv`：逐 case 完整性状态，不含机器相关的结果目录。
+- `golden_metadata.json`：平台、绑核、case 数和验收口径。
+- `golden_summary.txt`：中文摘要；仅记录第二轮复核 PASS，不保存第二轮性能数值。
+- `SHA256SUMS`：上述结果的完整性校验。
+
 主要结果文件：
 
 - `rounds.tsv`：两轮状态、起止时间和结果目录。
@@ -392,4 +413,3 @@ docker ps --filter label=com.hygon.swe-golden-run \
 - SMT sibling 有持续竞争，或服务器存在明显的其他用户负载。
 
 早期自由调度实验与本轮绑核实验的平台排序一致，但差距幅度发生变化，因此当前双轮单逻辑 CPU 数据应作为新的跨平台 Golden 基线。
-
