@@ -1,0 +1,11 @@
+AWS36 单核 Golden 数据
+======================
+正式数据口径：第一轮作为 Golden；第二轮仅用于完整性复核，不参与平均。
+
+平台：Newton
+固定逻辑 CPU：2
+Case：36/36 PASS
+ToolCall：1270
+Golden 全部 case 累计 wall time：1030578.264 ms
+Golden 单 case 平均 wall time：28627.174 ms
+第二轮复核：PASS
