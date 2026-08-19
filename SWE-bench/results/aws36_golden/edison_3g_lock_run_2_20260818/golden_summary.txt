@@ -6,6 +6,6 @@ AWS36 单核 Golden 数据
 固定逻辑 CPU：2
 Case：36/36 PASS
 ToolCall：1270
-Golden 全部 case 累计 wall time：1144161.184 ms
-Golden 单 case 平均 wall time：31782.255 ms
+Golden 全部 case 累计 wall time：1115992.314 ms
+Golden 单 case 平均 wall time：30999.787 ms
 第二轮复核：PASS

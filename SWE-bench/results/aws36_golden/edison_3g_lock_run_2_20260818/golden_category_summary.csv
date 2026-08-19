@@ -1,9 +1,9 @@
 category,calls,tool_e2e_ms,share_percent
-python,263,267123.132,38.14
-editor_view,309,130615.145,18.649
-shell_other,298,121866.682,17.4
-editor_replace,191,84966.09,12.131
-editor_create,125,55638.605,7.944
-submission,72,32872.168,4.693
-test,11,6908.422,0.986
-git,1,387.283,0.055
+python,263,266946.913,38.147
+editor_view,309,130651.625,18.67
+shell_other,298,121883.897,17.417
+editor_replace,191,84429.899,12.065
+editor_create,125,55744.85,7.966
+submission,72,32830.687,4.691
+test,11,6916.595,0.988
+git,1,386.802,0.055
