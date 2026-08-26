@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "description": "Selected action metadata used to derive the standalone inputs.",
+  "actions": [
+    {
+      "id": "grep_single",
+      "source_instance": "django__django-14608",
+      "source_action_index": 14,
+      "action_summary": "grep -n \"nonfield\" /testbed/django/forms/forms.py",
+      "execution_time_seconds": 0.4509120010006882
+    },
+    {
+      "id": "grep_context",
+      "source_instance": "pytest-dev__pytest-5221",
+      "source_action_index": 9,
+      "action_summary": "cd /testbed && grep -n \"def showfixtures\" -A 20 --include=\"*.py\" src/_pytest/python.py",
+      "execution_time_seconds": 0.11340850699889415
+    },
+    {
+      "id": "grep_recursive",
+      "source_instance": "pytest-dev__pytest-5221",
+      "source_action_index": 3,
+      "action_summary": "cd /testbed && grep -r \"def _fixtures\" --include=\"*.py\" .",
+      "execution_time_seconds": 0.12290188500082877
+    },
+    {
+      "id": "grep_files",
+      "source_instance": "django__django-14608",
+      "source_action_index": 5,
+      "action_summary": "find /testbed -type f -name \"*.py\" | xargs grep -l \"FormSet\" | grep -v \"test\" | head -10",
+      "execution_time_seconds": 0.4293614259986498
+    },
+    {
+      "id": "read_full",
+      "source_instance": "django__django-14608",
+      "source_action_index": 12,
+      "action_summary": "str_replace_editor view /testbed/django/forms/utils.py",
+      "execution_time_seconds": 0.14804765499866335
+    },
+    {
+      "id": "read_range",
+      "source_instance": "django__django-14608",
+      "source_action_index": 9,
+      "action_summary": "str_replace_editor view /testbed/django/forms/formsets.py --view_range 290 298",
+      "execution_time_seconds": 0.14846297899930505
+    },
+    {
+      "id": "write_create",
+      "source_instance": "django__django-14608",
+      "source_action_index": 16,
+      "action_summary": "str_replace_editor create /testbed/reproduce.py --file_text <payloads/reproduce.py>",
+      "execution_time_seconds": 0.1484085390002292
+    },
+    {
+      "id": "edit_unique",
+      "source_instance": "django__django-14608",
+      "source_action_index": 18,
+      "action_summary": "str_replace_editor str_replace /testbed/django/forms/formsets.py --old_str <payloads/edit_old.txt> --new_str <payloads/edit_new.txt>",
+      "execution_time_seconds": 0.20460357099909743
+    }
+  ]
+}

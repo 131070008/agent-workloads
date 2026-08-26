@@ -1,79 +1,68 @@
-# CC 文件工具与 GNU grep 最小微基准
+# Coding Agent 文件与搜索工具微基准
 
-本目录提供两组可以脱离 Agent、LLM、Docker 和网络运行的微基准：
+这是一套可直接从 Git 仓库运行的独立 microbench，不需要 Agent、LLM、Docker、SWE-bench 或网络：
 
-- `Read / Write / Edit`：按 Claude Code 2.1.88 对应工具源码的核心路径实现。
-- `grep`：直接执行 Golden trajectory 中实际出现的 GNU `grep` 命令，不替换为其他搜索工具。
+- `Read / Write / Edit`：复现 Claude Code 2.1.88 对应工具的核心执行路径。
+- GNU `grep`：保留 Golden trajectory 中实际出现的命令语义。
+- CC `Grep`：可选对照，按 Claude Code 的工具语义调用 `ripgrep`（`rg`）。
 
-Golden trajectory 只负责提供参数和编辑 payload，SWE-bench image 只负责提供固定输入文件；执行时不调用 SWE-agent `edit_anthropic`。
+输入源码、编辑 payload 和用例清单均已冻结在本目录。GNU `grep` 和 CC `Grep/rg` 是两套不同实验口径，结果不要混为一组。
 
-## 用例与输入
+## 快速开始
 
-| ID | 实现口径 | 输入来源 |
-|---|---|---|
-| `read_full` | CC Read：完整读取、mtime 状态、行号格式化 | `django-14608 #12`，`django/forms/utils.py` |
-| `read_range` | CC Read：指定行范围读取 | `django-14608 #9`，`formsets.py:290-298` |
-| `write_create` | CC Write：建目录、全量写入、flush、更新状态 | `django-14608 #16` 的完整 payload |
-| `edit_unique` | CC Edit：prior Read、陈旧检查、唯一匹配、patch、全文件重写 | `django-14608 #18` |
-| `grep_single_file` | GNU `grep -n` | `django-14608 #14` |
-| `grep_context` | GNU `grep -n -A 20` | `pytest-5221 #9` |
-| `grep_recursive_include` | GNU `grep -r --include` | `pytest-5221 #3` |
-| `grep_find_xargs` | `find | xargs grep -l | grep -v | head` | `django-14608 #5` |
-
-完整 bundle 包含所有执行文件与输入：
-
-```text
-cc_file_tool.mjs        # 直接执行 CC Read/Write/Edit
-cc_tool_microbench.mjs  # 重复运行、校验、CSV 输出
-fixtures/
-├── django/forms/       # 从 django-14608 image 提取，约 440 KB
-└── pytest/_pytest/     # 从 pytest-5221 image 提取，约 824 KB
-payloads/
-├── reproduce.py        # Write 的完整输入
-├── edit_old.txt        # Edit old_string
-└── edit_new.txt        # Edit new_string
-provenance/             # 轨迹原始 action/observation
-manifest.json           # 镜像摘要、文件哈希、用例与 grep 命令
-SHA256SUMS
-```
-
-## 祖冲之构建
-
-检查依赖和镜像：
+进入克隆后的目录：
 
 ```bash
-node --version          # >= 18
-grep --version | head -1
-docker image inspect \
-  swebench/sweb.eval.x86_64.django_1776_django-14608:v1 \
-  swebench/sweb.eval.x86_64.pytest-dev_1776_pytest-5221:v1 >/dev/null
+cd SWE-bench/tool_microbench/claude_code_minimal
+B=$PWD
 ```
 
-构建 bundle：
+依赖：
 
 ```bash
-cd /home/higon/cunzhe/agent-workloads/SWE-bench/tool_microbench/claude_code_minimal
-
-python3 extract_from_swe.py \
-  --trajectory 'django__django-14608=/home/higon/cunzhe/SWE/swe_runs/aws36_golden_single_cpu2_twice_zuchongzhi_20260813_135500/round1/cases/django__django-14608/django__django-14608_20260813_135657/django__django-14608.local.traj' \
-  --trajectory 'pytest-dev__pytest-5221=/home/higon/cunzhe/SWE/swe_runs/aws36_golden_single_cpu2_twice_zuchongzhi_20260813_135500/round1/cases/pytest-dev__pytest-5221/pytest-dev__pytest-5221_20260813_140325/pytest-dev__pytest-5221.local.traj' \
-  --output-dir /home/higon/cunzhe/cc_grep_tool_microbench_20260826_v2
+node --version        # Read/Write/Edit 与 CC Grep wrapper，建议 >= 18
+grep --version        # 原始轨迹 grep
+rg --version          # 仅运行可选 CC Grep 时需要
 ```
 
-校验静态文件：
+校验冻结输入：
 
 ```bash
-cd /home/higon/cunzhe/cc_grep_tool_microbench_20260826_v2
 sha256sum -c SHA256SUMS
 ```
 
-后续命令统一使用：
+目录结构：
 
-```bash
-B=/home/higon/cunzhe/cc_grep_tool_microbench_20260826_v2
+```text
+cc_file_tool.mjs        # 直接执行 CC Read/Write/Edit
+cc_rg_tool.mjs          # 直接执行 CC Grep，内部启动 rg
+cc_tool_microbench.mjs  # Read/Write/Edit 重复运行、校验和 CSV 输出
+fixtures/
+├── django/forms/       # 真实 Django 源码子树
+└── pytest/_pytest/     # 真实 pytest 源码子树
+payloads/
+├── reproduce.py        # Write 输入
+├── edit_old.txt        # Edit old_string
+└── edit_new.txt        # Edit new_string
+manifest.json           # 用例、输入和命令清单
+SHA256SUMS               # 静态文件校验
 ```
 
-## 直接执行 CC Read
+## 用例
+
+| 类别 | 用例 | 核心操作 |
+|---|---|---|
+| CC Read | `read_full` | 完整读取、mtime 状态、行号格式化 |
+| CC Read | `read_range` | 指定行范围读取和格式化 |
+| CC Write | `write_create` | 建目录、全量写入、flush、更新状态 |
+| CC Edit | `edit_unique` | prior Read、陈旧检查、唯一匹配、patch、全文件重写 |
+| GNU grep | `grep_single_file` | 单文件匹配并输出行号 |
+| GNU grep | `grep_context` | 单文件匹配并返回 20 行后置上下文 |
+| GNU grep | `grep_recursive_include` | 递归扫描 Python 文件 |
+| GNU grep | `grep_find_xargs` | `find | xargs grep | grep | head` pipeline |
+| CC Grep | `cc_rg_*` | `rg` 子进程、过滤、输出模式、分页与路径处理 |
+
+## CC Read
 
 完整文件：
 
@@ -91,9 +80,7 @@ time taskset -c 2 node "$B/cc_file_tool.mjs" read \
   --limit 9
 ```
 
-## 直接执行 CC Write
-
-准备独立输出目录，然后执行完整文件写入：
+## CC Write
 
 ```bash
 W="$B/direct_work/write_$(date +%Y%m%d_%H%M%S)"
@@ -104,9 +91,9 @@ time taskset -c 2 node "$B/cc_file_tool.mjs" write \
   --content-file "$B/payloads/reproduce.py"
 ```
 
-## 直接执行 CC Edit
+## CC Edit
 
-输入复制不计入 Edit 本身：
+准备输入文件不计入 Edit 本身：
 
 ```bash
 W="$B/direct_work/edit_$(date +%Y%m%d_%H%M%S)"
@@ -119,36 +106,36 @@ time taskset -c 2 node "$B/cc_file_tool.mjs" edit \
   --new-file "$B/payloads/edit_new.txt"
 ```
 
-`cc_file_tool.mjs edit` 会先建立 CC Edit 要求的完整 Read 状态，再执行陈旧检查、唯一匹配、patch 构造、全文件重写和 flush。批量 runner 则把 prior Read 放在计时区间外。
+直接执行入口会先建立 CC Edit 要求的完整 Read 状态，再执行陈旧检查、唯一匹配、patch 构造、全文件重写和 flush。批量 runner 把 prior Read 放在计时区间外。
 
-## 直接执行 GNU grep
+## 原始 GNU grep
 
-以下命令不经过 Node 或 benchmark runner，可直接交给 `time`、`perf` 或 SDE。
+以下命令不经过 Node 或 runner，可以直接接 `time`、`perf` 或 SDE。
 
-### 1. 单文件匹配并打印行号
+单文件匹配并打印行号：
 
 ```bash
 time taskset -c 2 grep -n "nonfield" \
   "$B/fixtures/django/forms/forms.py"
 ```
 
-### 2. 单文件匹配并返回 20 行后置上下文
+返回 20 行后置上下文：
 
 ```bash
 time taskset -c 2 grep -n "def showfixtures" -A 20 --include="*.py" \
   "$B/fixtures/pytest/_pytest/python.py"
 ```
 
-### 3. 递归扫描 Python 文件
+递归扫描 Python 文件：
 
 ```bash
 time taskset -c 2 grep -r "def _fixtures" --include="*.py" \
   "$B/fixtures/pytest/_pytest"
 ```
 
-此条轨迹预期无匹配；GNU `grep` 返回 `1` 表示没有匹配，不是执行故障。
+该用例预期无匹配；GNU `grep` 返回 `1` 表示没有匹配，不是执行故障。
 
-### 4. 文件发现、内容搜索、路径过滤
+文件发现、内容搜索和路径过滤：
 
 ```bash
 time bash -lc '
@@ -159,43 +146,111 @@ time bash -lc '
 ' _ "$B"
 ```
 
-## 直接 perf 采集 grep
+## 可选：CC Grep / ripgrep
 
-计数器：
+`cc_rg_tool.mjs` 复现 CC Grep 的主要路径：启动 `rg`，搜索隐藏文件，排除 VCS 目录，限制超长行，支持 `content/files_with_matches/count`、上下文、glob/type、分页、相对路径转换，并在文件列表模式按 mtime 排序。
+
+单文件内容模式：
+
+```bash
+time taskset -c 2 node "$B/cc_rg_tool.mjs" \
+  --pattern nonfield \
+  --path "$B/fixtures/django/forms/forms.py" \
+  --output-mode content
+```
+
+20 行后置上下文：
+
+```bash
+time taskset -c 2 node "$B/cc_rg_tool.mjs" \
+  --pattern "def showfixtures" \
+  --path "$B/fixtures/pytest/_pytest/python.py" \
+  --glob "*.py" \
+  --output-mode content \
+  -A 20
+```
+
+递归内容搜索：
+
+```bash
+time taskset -c 2 node "$B/cc_rg_tool.mjs" \
+  --pattern "def _fixtures" \
+  --path "$B/fixtures/pytest/_pytest" \
+  --glob "*.py" \
+  --output-mode content
+```
+
+返回匹配文件，按 mtime 排序并保留前 10 项：
+
+```bash
+time taskset -c 2 node "$B/cc_rg_tool.mjs" \
+  --pattern FormSet \
+  --path "$B/fixtures/django/forms" \
+  --glob "*.py" \
+  --output-mode files_with_matches \
+  --head-limit 10
+```
+
+加 `--print-rg-command` 可在标准错误中打印实际展开的底层 `rg` 命令；加 `--json` 可查看结构化结果。
+
+### 只测底层 rg
+
+如果只分析搜索引擎本体，不计 Node、子进程创建和 CC 结果整理，可直接运行 `rg`：
+
+```bash
+RG_COMMON=(
+  --hidden --with-filename
+  --glob '!.git' --glob '!.svn' --glob '!.hg'
+  --glob '!.bzr' --glob '!.jj' --glob '!.sl'
+  --max-columns 500
+)
+
+time taskset -c 2 rg "${RG_COMMON[@]}" -n \
+  "nonfield" "$B/fixtures/django/forms/forms.py"
+
+time taskset -c 2 rg "${RG_COMMON[@]}" -n -A 20 --glob '*.py' \
+  "def showfixtures" "$B/fixtures/pytest/_pytest/python.py"
+
+time taskset -c 2 rg "${RG_COMMON[@]}" -n --glob '*.py' \
+  "def _fixtures" "$B/fixtures/pytest/_pytest"
+
+time taskset -c 2 rg "${RG_COMMON[@]}" -l --glob '*.py' \
+  "FormSet" "$B/fixtures/django/forms"
+```
+
+最后一条原生 `rg -l` 不包含 CC wrapper 的 `stat + mtime sort + head_limit` 后处理。
+
+## perf 示例
+
+GNU grep：
 
 ```bash
 sudo perf stat -r 10 \
   -e cycles,instructions,branches,branch-misses,cache-references,cache-misses \
   -- taskset -c 2 grep -n "nonfield" \
   "$B/fixtures/django/forms/forms.py"
-```
 
-采样并保留汇编热点：
-
-```bash
 mkdir -p "$B/perf_results"
-
 sudo perf record -F 999 -g \
   -o "$B/perf_results/grep_single_file.data" \
   -- taskset -c 2 grep -n "nonfield" \
   "$B/fixtures/django/forms/forms.py"
-
-sudo perf report \
-  -i "$B/perf_results/grep_single_file.data"
 ```
 
-递归搜索：
+只测底层 `rg`：
 
 ```bash
 sudo perf record -F 999 -g \
-  -o "$B/perf_results/grep_recursive.data" \
-  -- taskset -c 2 grep -r "def _fixtures" --include="*.py" \
-  "$B/fixtures/pytest/_pytest"
+  -o "$B/perf_results/rg_single_file.data" \
+  -- taskset -c 2 rg "${RG_COMMON[@]}" -n \
+  "nonfield" "$B/fixtures/django/forms/forms.py"
 ```
 
-## CC 文件工具批量运行
+测完整 CC Grep 路径时，把 `perf record` 后面的命令替换为对应的 `node "$B/cc_rg_tool.mjs" ...`。
 
-批量 runner 只运行 CC `Read / Write / Edit`，不包装 GNU `grep`：
+## Read/Write/Edit 批量运行
+
+批量 runner 只运行 CC `Read / Write / Edit`：
 
 ```bash
 node "$B/cc_tool_microbench.mjs" --bundle "$B" --list
@@ -216,33 +271,22 @@ taskset -c 2 node "$B/cc_tool_microbench.mjs" \
   --iterations 100
 ```
 
-结果保存在新的时间戳目录：
-
-```text
-results/YYYYMMDD_HHMMSS/
-├── results.csv
-├── results.json
-├── artifacts/<case>/
-└── work/
-```
+结果写入 `results/YYYYMMDD_HHMMSS/`，包含 `results.csv`、`results.json`、首轮输出和独立工作目录。
 
 ## 计时边界
 
 - CC `Read`：文件读取、范围选择、mtime-backed 状态更新和行号格式化。
 - CC `Write`：创建父目录、全内容写入、`fsync` 和状态更新。
-- CC `Edit`：批量模式将 prior Read 放在计时外；计时包含全文件重读、陈旧检查、唯一匹配、patch/确认片段生成、全文件重写、`fsync` 和状态更新。
-- GNU `grep`：README 中的直接命令只统计真实 `grep` 进程；pipeline 用例同时包含 `find/xargs/grep/head` 子进程。
+- CC `Edit`：计时包含全文件重读、陈旧检查、唯一匹配、patch/确认片段生成、全文件重写、`fsync` 和状态更新；批量模式的 prior Read 在计时外。
+- GNU `grep`：单命令只统计真实 `grep`；pipeline 同时包含 `find/xargs/grep/head`。
+- CC `Grep`：包含 Node 工具逻辑、`rg` 子进程及结果后处理；原生 `rg` 命令只测搜索引擎本体。
 
-源码核对版本和文件 SHA256 位于 `source_audit.json`；轨迹原始 action/observation 位于 `provenance/`；镜像摘要、fixture SHA256 和展开后的 GNU `grep` 命令位于 `manifest.json`。
+## 附录：输入来源与重新生成
 
-## 祖冲之验证
+当前 `fixtures/` 和 `payloads/` 是从两条公开 SWE-bench 用例的已完成轨迹及其固定环境中抽取出的快照。它们现在是普通仓库文件，日常运行与 Docker image 没有关系。
 
-```text
-bundle: /home/higon/cunzhe/cc_grep_tool_microbench_20260826_v2
-GNU grep: 3.7
-Node.js: v24.19.0
-grep: 4/4 命令执行结果符合原轨迹口径
-direct file tools: Read/Write/Edit 全部通过内容校验
-batch file tools: 20/20 valid=true，FAILURES=0
-result: /home/higon/cunzhe/cc_grep_tool_microbench_20260826_v2/results/20260826_092439
-```
+只有在更换原始用例或重建输入时，才需要 `extract_from_swe.py`：向它提供对应 trajectory，并让本机具备原始 benchmark 环境，它会重新抽取源码子树、payload、manifest 和校验文件。这里属于来源审计与重建路径，不属于 microbench 的执行流程。
+
+- `provenance/selected_actions.json`：仅保留选中 action 的摘要和索引。
+- `source_audit.json`：记录 CC 工具源码版本、哈希和本实现覆盖的核心路径。
+- `manifest.json`：记录冻结输入、用例和两类搜索命令。

@@ -1,0 +1,89 @@
+{
+  "schema_version": 2,
+  "description": "Standalone Coding Agent file and search tool microbench.",
+  "tool_semantics": "Claude Code 2.1.88 core Read/Write/Edit/Grep behavior plus original GNU grep trajectory commands.",
+  "source": {
+    "instances": [
+      "django__django-14608",
+      "pytest-dev__pytest-5221"
+    ],
+    "note": "Fixtures and payloads are committed snapshots. Normal execution does not require SWE-bench, Docker, trajectories, an LLM, or network access."
+  },
+  "fixture_groups": {
+    "fixtures/django/forms": "Django source subtree used by the selected file and search operations.",
+    "fixtures/pytest/_pytest": "pytest source subtree used by the selected search operations."
+  },
+  "cases": [
+    {
+      "id": "read_full",
+      "tool": "Read",
+      "description": "Read and line-number a complete Django source file.",
+      "fixture": "fixtures/django/forms/utils.py",
+      "offset": 1,
+      "limit": null,
+      "expected_source_sha256": "7e1130cede46332c4920a205f9610b97e8de20e389ca09c0688f55983ebc88a8"
+    },
+    {
+      "id": "read_range",
+      "tool": "Read",
+      "description": "Read and line-number lines 290-298 from formsets.py.",
+      "fixture": "fixtures/django/forms/formsets.py",
+      "offset": 290,
+      "limit": 9,
+      "expected_source_sha256": "2f9484d1eebefea1207629657c40d9f0cffca5d3584ef7c2174cd3ef048653b9"
+    },
+    {
+      "id": "write_create",
+      "tool": "Write",
+      "description": "Create reproduce.py with the frozen trajectory payload.",
+      "content_file": "payloads/reproduce.py",
+      "expected_sha256": "2f262e54cfb068b46639152d20633268e274fd514eecd1197eed57253e0fce27"
+    },
+    {
+      "id": "edit_unique",
+      "tool": "Edit",
+      "description": "Read first, validate one exact match, and rewrite formsets.py.",
+      "fixture": "fixtures/django/forms/formsets.py",
+      "old_string_file": "payloads/edit_old.txt",
+      "new_string_file": "payloads/edit_new.txt",
+      "replace_all": false,
+      "expected_sha256": "8e8069055f7dc9c96cb882ed46bd60007dcc9f9c3c057cf17346264a3cbee545"
+    }
+  ],
+  "grep_commands": [
+    {
+      "id": "grep_single_file",
+      "command": "grep -n \"nonfield\" \"$B/fixtures/django/forms/forms.py\""
+    },
+    {
+      "id": "grep_context",
+      "command": "grep -n \"def showfixtures\" -A 20 --include=\"*.py\" \"$B/fixtures/pytest/_pytest/python.py\""
+    },
+    {
+      "id": "grep_recursive_include",
+      "command": "grep -r \"def _fixtures\" --include=\"*.py\" \"$B/fixtures/pytest/_pytest\""
+    },
+    {
+      "id": "grep_find_xargs",
+      "command": "find \"$B/fixtures/django/forms\" -type f -name \"*.py\" -print0 | xargs -0 grep -l \"FormSet\" | grep -v \"test\" | head -10"
+    }
+  ],
+  "cc_rg_commands": [
+    {
+      "id": "cc_rg_single_file",
+      "command": "node \"$B/cc_rg_tool.mjs\" --pattern nonfield --path \"$B/fixtures/django/forms/forms.py\" --output-mode content"
+    },
+    {
+      "id": "cc_rg_context",
+      "command": "node \"$B/cc_rg_tool.mjs\" --pattern 'def showfixtures' --path \"$B/fixtures/pytest/_pytest/python.py\" --glob '*.py' --output-mode content -A 20"
+    },
+    {
+      "id": "cc_rg_recursive",
+      "command": "node \"$B/cc_rg_tool.mjs\" --pattern 'def _fixtures' --path \"$B/fixtures/pytest/_pytest\" --glob '*.py' --output-mode content"
+    },
+    {
+      "id": "cc_rg_files",
+      "command": "node \"$B/cc_rg_tool.mjs\" --pattern FormSet --path \"$B/fixtures/django/forms\" --glob '*.py' --output-mode files_with_matches --head-limit 10"
+    }
+  ]
+}

@@ -1,3 +1,7 @@
 __pycache__/
 *.pyc
 results/
+direct_work/
+perf_results/
+provenance/*.json
+!provenance/selected_actions.json

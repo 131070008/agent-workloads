@@ -6,11 +6,9 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
-import platform
 import shlex
 import shutil
 import subprocess
-import sys
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -75,7 +73,14 @@ def copy_from_image(image: str, paths: list[tuple[str, Path]]) -> dict[str, Any]
             run(["docker", "cp", f"{container}:{source}/.", str(destination)], stdout=None)
     finally:
         subprocess.run(["docker", "rm", "-f", container], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    return json.loads(run(["docker", "image", "inspect", image]).stdout)[0]
+    inspected = json.loads(run(["docker", "image", "inspect", image]).stdout)[0]
+    return {
+        "reference": image,
+        "image_id": inspected.get("Id"),
+        "repo_digests": inspected.get("RepoDigests", []),
+        "architecture": inspected.get("Architecture"),
+        "os": inspected.get("Os"),
+    }
 
 
 def relative_fixture_hashes(bundle: Path) -> dict[str, str]:
@@ -187,7 +192,7 @@ def main() -> None:
             "id": "write_create",
             "tool": "Write",
             "description": "Create reproduce.py with the exact trajectory payload.",
-            "content": write_content,
+            "content_file": "payloads/reproduce.py",
             "expected_sha256": hashlib.sha256(write_content.encode()).hexdigest(),
             "source_instance": "django__django-14608",
             "source_action_index": 16,
@@ -197,8 +202,8 @@ def main() -> None:
             "tool": "Edit",
             "description": "Read-first, validate one exact match, and rewrite formsets.py.",
             "fixture": "fixtures/django/forms/formsets.py",
-            "old_string": old_string,
-            "new_string": new_string,
+            "old_string_file": "payloads/edit_old.txt",
+            "new_string_file": "payloads/edit_new.txt",
             "replace_all": False,
             "expected_sha256": hashlib.sha256(edited_formsets.encode()).hexdigest(),
             "source_instance": "django__django-14608",
@@ -241,34 +246,85 @@ def main() -> None:
         },
     ]
 
+    cc_rg_commands = [
+        {
+            "id": "cc_rg_single_file",
+            "description": "CC Grep content mode on one Django source file.",
+            "command": "node \"$B/cc_rg_tool.mjs\" --pattern nonfield --path \"$B/fixtures/django/forms/forms.py\" --output-mode content",
+        },
+        {
+            "id": "cc_rg_context",
+            "description": "CC Grep content mode with 20 trailing context lines.",
+            "command": "node \"$B/cc_rg_tool.mjs\" --pattern 'def showfixtures' --path \"$B/fixtures/pytest/_pytest/python.py\" --glob '*.py' --output-mode content -A 20",
+        },
+        {
+            "id": "cc_rg_recursive",
+            "description": "CC Grep recursive search with a Python glob.",
+            "command": "node \"$B/cc_rg_tool.mjs\" --pattern 'def _fixtures' --path \"$B/fixtures/pytest/_pytest\" --glob '*.py' --output-mode content",
+        },
+        {
+            "id": "cc_rg_files",
+            "description": "CC Grep files-with-matches mode, mtime sort, and result limit.",
+            "command": "node \"$B/cc_rg_tool.mjs\" --pattern FormSet --path \"$B/fixtures/django/forms\" --glob '*.py' --output-mode files_with_matches --head-limit 10",
+        },
+    ]
+
     provenance = output / "provenance"
     provenance.mkdir()
-    for key, record in records.items():
-        (provenance / f"{key}.json").write_text(
-            json.dumps(record, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
-        )
+    action_summaries = {
+        "grep_single": records["grep_single"]["action"],
+        "grep_context": records["grep_context"]["action"],
+        "grep_recursive": records["grep_recursive"]["action"],
+        "grep_files": records["grep_files"]["action"],
+        "read_full": records["read_full"]["action"],
+        "read_range": records["read_range"]["action"],
+        "write_create": "str_replace_editor create /testbed/reproduce.py --file_text <payloads/reproduce.py>",
+        "edit_unique": "str_replace_editor str_replace /testbed/django/forms/formsets.py --old_str <payloads/edit_old.txt> --new_str <payloads/edit_new.txt>",
+    }
+    source_indexes = {
+        "grep_single": ("django__django-14608", 14),
+        "grep_context": ("pytest-dev__pytest-5221", 9),
+        "grep_recursive": ("pytest-dev__pytest-5221", 3),
+        "grep_files": ("django__django-14608", 5),
+        "read_full": ("django__django-14608", 12),
+        "read_range": ("django__django-14608", 9),
+        "write_create": ("django__django-14608", 16),
+        "edit_unique": ("django__django-14608", 18),
+    }
+    selected_actions = {
+        "schema_version": 1,
+        "description": "Selected action metadata used to derive the standalone inputs.",
+        "actions": [
+            {
+                "id": key,
+                "source_instance": source_indexes[key][0],
+                "source_action_index": source_indexes[key][1],
+                "action_summary": action_summaries[key],
+                "execution_time_seconds": records[key].get("execution_time"),
+            }
+            for key in records
+        ],
+    }
+    (provenance / "selected_actions.json").write_text(
+        json.dumps(selected_actions, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
 
     shutil.copy2(SCRIPT_DIR / "cc_tool_microbench.mjs", output / "cc_tool_microbench.mjs")
     shutil.copy2(SCRIPT_DIR / "cc_file_tool.mjs", output / "cc_file_tool.mjs")
+    shutil.copy2(SCRIPT_DIR / "cc_rg_tool.mjs", output / "cc_rg_tool.mjs")
     shutil.copy2(SCRIPT_DIR / "README.md", output / "README.md")
     shutil.copy2(SCRIPT_DIR / "source_audit.json", output / "source_audit.json")
 
     manifest = {
-        "schema_version": 1,
+        "schema_version": 2,
         "created_at": datetime.now(timezone.utc).isoformat(),
-        "host": {
-            "hostname": platform.node(),
-            "platform": platform.platform(),
-            "python": sys.version,
+        "source": {
+            "trajectory_framework": "SWE-agent 1.0.0 with SWE-ReX 1.1.0",
+            "instances": sorted(trajectories),
+            "image_artifacts": image_metadata,
+            "note": "Source artifacts are only required to regenerate fixtures; normal execution uses the committed files.",
         },
-        "trajectory_framework": {
-            "name": "SWE-agent",
-            "version": "1.0.0",
-            "swe_rex_version": "1.1.0",
-        },
-        "tool_semantics": "Claude Code 2.1.88 core Read/Write/Edit behavior plus original GNU grep trajectory commands",
-        "trajectories": {key: str(path) for key, path in trajectories.items()},
-        "images": image_metadata,
+        "tool_semantics": "Claude Code 2.1.88 core Read/Write/Edit/Grep behavior plus original GNU grep trajectory commands",
         "fixture_sha256": relative_fixture_hashes(output),
         "payload_files": {
             "write_content": "payloads/reproduce.py",
@@ -277,6 +333,7 @@ def main() -> None:
         },
         "cases": cases,
         "grep_commands": grep_commands,
+        "cc_rg_commands": cc_rg_commands,
     }
     (output / "manifest.json").write_text(
         json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
@@ -291,6 +348,7 @@ def main() -> None:
     print(f"BUNDLE={output}")
     print(f"CASES={len(cases)}")
     print(f"GREP_COMMANDS={len(grep_commands)}")
+    print(f"CC_RG_COMMANDS={len(cc_rg_commands)}")
     print(f"FIXTURE_FILES={len(manifest['fixture_sha256'])}")
 
 

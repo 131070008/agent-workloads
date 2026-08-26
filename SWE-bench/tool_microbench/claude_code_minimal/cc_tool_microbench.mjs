@@ -248,9 +248,20 @@ function prepare(caseInfo, bundle, workRoot, sequence) {
 
 async function execute(caseInfo, bundle, prepared) {
   if (caseInfo.tool === 'Read') return readTool(prepared.targetPath, caseInfo.offset, caseInfo.limit ?? undefined)
-  if (caseInfo.tool === 'Write') return writeTool(prepared.targetPath, caseInfo.content)
+  if (caseInfo.tool === 'Write') {
+    const content = caseInfo.content_file
+      ? await readFile(path.resolve(bundle, caseInfo.content_file), 'utf8')
+      : caseInfo.content
+    return writeTool(prepared.targetPath, content)
+  }
   if (caseInfo.tool === 'Edit') {
-    return editTool(prepared.targetPath, caseInfo.old_string, caseInfo.new_string, caseInfo.replace_all)
+    const oldString = caseInfo.old_string_file
+      ? await readFile(path.resolve(bundle, caseInfo.old_string_file), 'utf8')
+      : caseInfo.old_string
+    const newString = caseInfo.new_string_file
+      ? await readFile(path.resolve(bundle, caseInfo.new_string_file), 'utf8')
+      : caseInfo.new_string
+    return editTool(prepared.targetPath, oldString, newString, caseInfo.replace_all)
   }
   throw new Error(`Unsupported tool: ${caseInfo.tool}`)
 }

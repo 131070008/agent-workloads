@@ -1,0 +1,9 @@
+    def non_form_errors(self):
+        """
+        Return an ErrorList of errors that aren't associated with a particular
+        form -- i.e., from formset.clean(). Return an empty ErrorList if there
+        are none.
+        """
+        if self._non_form_errors is None:
+            self.full_clean()
+        return self._non_form_errors or self.error_class(error_class='nonform')
