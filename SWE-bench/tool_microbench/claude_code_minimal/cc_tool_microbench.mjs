@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 
-import { spawn } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import {
   closeSync,
@@ -16,14 +15,13 @@ import {
 import { mkdir, readFile, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import process from 'node:process'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 
-const VCS_EXCLUSIONS = ['.git', '.svn', '.hg', '.bzr', '.jj', '.sl']
-const DEFAULT_HEAD_LIMIT = 250
 const readFileState = new Map()
 
 function parseArgs(argv) {
   const result = {
-    bundle: path.dirname(new URL(import.meta.url).pathname),
+    bundle: path.dirname(fileURLToPath(import.meta.url)),
     cases: [],
     iterations: 1,
     warmup: 0,
@@ -83,7 +81,7 @@ function renderNumbered(content, startLine) {
   return lines.map((line, index) => `${String(startLine + index).padStart(6)}\t${line}`).join('\n')
 }
 
-async function readTool(filePath, offset = 1, limit = undefined) {
+export async function readTool(filePath, offset = 1, limit = undefined) {
   const fullPath = path.resolve(filePath)
   const prior = readFileState.get(fullPath)
   if (prior && prior.offset === offset && prior.limit === limit) {
@@ -128,7 +126,7 @@ function writeTextContentAndFlush(filePath, content) {
   }
 }
 
-function fullReadState(filePath) {
+export function fullReadState(filePath) {
   const content = readFileSync(filePath, 'utf8').replaceAll('\r\n', '\n')
   const metadata = statSync(filePath)
   readFileState.set(path.resolve(filePath), {
@@ -141,7 +139,7 @@ function fullReadState(filePath) {
   return content
 }
 
-function writeTool(filePath, content) {
+export function writeTool(filePath, content) {
   const fullPath = path.resolve(filePath)
   mkdirSync(path.dirname(fullPath), { recursive: true })
   if (existsSync(fullPath)) {
@@ -196,7 +194,7 @@ function makePatchAndSnippet(original, updated, oldString, newString) {
   return { patch, snippet, sourceLines: before.length }
 }
 
-function editTool(filePath, oldString, newString, replaceAll = false) {
+export function editTool(filePath, oldString, newString, replaceAll = false) {
   const fullPath = path.resolve(filePath)
   mkdirSync(path.dirname(fullPath), { recursive: true })
   const original = readFileSync(fullPath, 'utf8').replaceAll('\r\n', '\n')
@@ -222,98 +220,12 @@ function editTool(filePath, oldString, newString, replaceAll = false) {
   return { rendered: display.snippet, content: updated, patch: display.patch, matches }
 }
 
-function splitGlob(glob) {
-  if (!glob) return []
-  return glob.split(/\s+/).flatMap(item =>
-    item.includes('{') && item.includes('}') ? [item] : item.split(',').filter(Boolean),
-  )
-}
-
-function spawnRg(args, searchPath) {
-  return new Promise((resolve, reject) => {
-    const child = spawn('rg', [...args, searchPath], {
-      stdio: ['ignore', 'pipe', 'pipe'],
-      timeout: 20_000,
-    })
-    const stdout = []
-    const stderr = []
-    child.stdout.on('data', chunk => stdout.push(chunk))
-    child.stderr.on('data', chunk => stderr.push(chunk))
-    child.on('error', reject)
-    child.on('close', code => {
-      const errorText = Buffer.concat(stderr).toString('utf8')
-      if (code !== 0 && code !== 1) reject(new Error(`rg exited ${code}: ${errorText}`))
-      else resolve({ code, stdout: Buffer.concat(stdout).toString('utf8'), stderr: errorText })
-    })
-  })
-}
-
-function applyHeadLimit(items, limit, offset = 0) {
-  if (limit === 0) return items.slice(offset)
-  const effective = limit ?? DEFAULT_HEAD_LIMIT
-  return items.slice(offset, offset + effective)
-}
-
-function relativeFirstPath(line, root) {
-  const colon = line.indexOf(':')
-  if (colon <= 0) return line
-  const file = line.slice(0, colon)
-  return `${path.relative(root, file)}${line.slice(colon)}`
-}
-
-async function grepTool(input, bundle) {
-  const searchPath = path.resolve(bundle, input.path)
-  const mode = input.output_mode ?? 'files_with_matches'
-  const args = ['--hidden', '--with-filename']
-  for (const directory of VCS_EXCLUSIONS) args.push('--glob', `!${directory}`)
-  args.push('--max-columns', '500')
-  if (input.multiline) args.push('-U', '--multiline-dotall')
-  if (input.case_insensitive) args.push('-i')
-  if (mode === 'files_with_matches') args.push('-l')
-  else if (mode === 'count') args.push('-c')
-  if (input.line_numbers !== false && mode === 'content') args.push('-n')
-  if (mode === 'content') {
-    if (input.context !== undefined) args.push('-C', String(input.context))
-    else {
-      if (input.before_context !== undefined) args.push('-B', String(input.before_context))
-      if (input.after_context !== undefined) args.push('-A', String(input.after_context))
-    }
-  }
-  if (input.pattern.startsWith('-')) args.push('-e', input.pattern)
-  else args.push(input.pattern)
-  if (input.type) args.push('--type', input.type)
-  for (const glob of splitGlob(input.glob)) args.push('--glob', glob)
-
-  const execution = await spawnRg(args, searchPath)
-  let lines = execution.stdout.split('\n').filter(Boolean)
-  if (mode === 'files_with_matches') {
-    const metadata = await Promise.allSettled(lines.map(file => stat(file)))
-    lines = lines
-      .map((file, index) => [file, metadata[index].status === 'fulfilled' ? metadata[index].value.mtimeMs : 0])
-      .sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0]))
-      .map(item => item[0])
-    lines = applyHeadLimit(lines, input.head_limit, input.offset ?? 0)
-    const relative = lines.map(file => path.relative(bundle, file))
-    return { rendered: relative.join('\n'), files: relative, matches: relative.length, rgArgs: args }
-  }
-  lines = applyHeadLimit(lines, input.head_limit, input.offset ?? 0)
-  const relative = lines.map(line => relativeFirstPath(line, bundle))
-  return { rendered: relative.join('\n'), lines: relative, matches: relative.length, rgArgs: args }
-}
-
 function validate(caseInfo, result, targetPath) {
   if (caseInfo.tool === 'Read') {
     return sha256(readFileSync(path.resolve(targetPath))) === caseInfo.expected_source_sha256 && result.content.length > 0
   }
   if (caseInfo.tool === 'Write' || caseInfo.tool === 'Edit') {
     return sha256(readFileSync(targetPath)) === caseInfo.expected_sha256
-  }
-  if (caseInfo.expected_matches !== undefined) return result.matches === caseInfo.expected_matches
-  if (caseInfo.expected_min_files !== undefined) return result.files.length >= caseInfo.expected_min_files
-  if (caseInfo.expected_line_numbers) {
-    return caseInfo.expected_line_numbers.every(lineNumber =>
-      result.lines.some(line => line.includes(`:${lineNumber}:`) || line.includes(`:${lineNumber}-`)),
-    )
   }
   return true
 }
@@ -340,7 +252,6 @@ async function execute(caseInfo, bundle, prepared) {
   if (caseInfo.tool === 'Edit') {
     return editTool(prepared.targetPath, caseInfo.old_string, caseInfo.new_string, caseInfo.replace_all)
   }
-  if (caseInfo.tool === 'Grep') return grepTool(caseInfo, bundle)
   throw new Error(`Unsupported tool: ${caseInfo.tool}`)
 }
 
@@ -422,7 +333,13 @@ async function main() {
   if (failures.length > 0) process.exitCode = 1
 }
 
-main().catch(error => {
-  console.error(error.stack || error.message)
-  process.exitCode = 1
-})
+const isEntryPoint =
+  process.argv[1] !== undefined &&
+  import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href
+
+if (isEntryPoint) {
+  main().catch(error => {
+    console.error(error.stack || error.message)
+    process.exitCode = 1
+  })
+}

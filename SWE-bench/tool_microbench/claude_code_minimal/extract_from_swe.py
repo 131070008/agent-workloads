@@ -148,6 +148,12 @@ def main() -> None:
     old_string = option(edit_tokens, "--old_str")
     new_string = option(edit_tokens, "--new_str")
 
+    payloads = output / "payloads"
+    payloads.mkdir()
+    (payloads / "reproduce.py").write_text(write_content, encoding="utf-8")
+    (payloads / "edit_old.txt").write_text(old_string, encoding="utf-8")
+    (payloads / "edit_new.txt").write_text(new_string, encoding="utf-8")
+
     formsets = output / "fixtures" / "django" / "forms" / "formsets.py"
     source_formsets = formsets.read_text(encoding="utf-8")
     if source_formsets.count(old_string) != 1:
@@ -198,55 +204,38 @@ def main() -> None:
             "source_instance": "django__django-14608",
             "source_action_index": 18,
         },
+    ]
+
+    grep_commands = [
         {
-            "id": "grep_content_single",
-            "tool": "Grep",
+            "id": "grep_single_file",
             "description": "Search one Django source file with line numbers.",
-            "path": "fixtures/django/forms/forms.py",
-            "pattern": "nonfield",
-            "output_mode": "content",
-            "line_numbers": True,
-            "expected_line_numbers": [317, 359],
+            "command": "grep -n \"nonfield\" \"$B/fixtures/django/forms/forms.py\"",
+            "source_action": records["grep_single"]["action"],
             "source_instance": "django__django-14608",
             "source_action_index": 14,
         },
         {
-            "id": "grep_content_context",
-            "tool": "Grep",
+            "id": "grep_context",
             "description": "Search pytest python.py and return 20 trailing context lines.",
-            "path": "fixtures/pytest/_pytest/python.py",
-            "pattern": "def showfixtures",
-            "glob": "*.py",
-            "output_mode": "content",
-            "line_numbers": True,
-            "after_context": 20,
-            "expected_line_numbers": [1297],
+            "command": "grep -n \"def showfixtures\" -A 20 --include=\"*.py\" \"$B/fixtures/pytest/_pytest/python.py\"",
+            "source_action": records["grep_context"]["action"],
             "source_instance": "pytest-dev__pytest-5221",
             "source_action_index": 9,
         },
         {
-            "id": "grep_recursive_no_match",
-            "tool": "Grep",
+            "id": "grep_recursive_include",
             "description": "Recursively search the real _pytest subtree with a Python glob.",
-            "path": "fixtures/pytest/_pytest",
-            "pattern": "def _fixtures",
-            "glob": "*.py",
-            "output_mode": "content",
-            "line_numbers": True,
-            "expected_matches": 0,
+            "command": "grep -r \"def _fixtures\" --include=\"*.py\" \"$B/fixtures/pytest/_pytest\"",
+            "source_action": records["grep_recursive"]["action"],
             "source_instance": "pytest-dev__pytest-5221",
             "source_action_index": 3,
         },
         {
-            "id": "grep_files_with_matches",
-            "tool": "Grep",
-            "description": "Run the Claude Code default file-list path, including stat and mtime sort.",
-            "path": "fixtures/django/forms",
-            "pattern": "FormSet",
-            "glob": "*.py",
-            "output_mode": "files_with_matches",
-            "head_limit": 10,
-            "expected_min_files": 1,
+            "id": "grep_find_xargs",
+            "description": "Find Python files, search their contents, filter test paths, and keep ten results.",
+            "command": "find \"$B/fixtures/django/forms\" -type f -name \"*.py\" -print0 | xargs -0 grep -l \"FormSet\" | grep -v \"test\" | head -10",
+            "source_action": records["grep_files"]["action"],
             "source_instance": "django__django-14608",
             "source_action_index": 5,
         },
@@ -260,6 +249,7 @@ def main() -> None:
         )
 
     shutil.copy2(SCRIPT_DIR / "cc_tool_microbench.mjs", output / "cc_tool_microbench.mjs")
+    shutil.copy2(SCRIPT_DIR / "cc_file_tool.mjs", output / "cc_file_tool.mjs")
     shutil.copy2(SCRIPT_DIR / "README.md", output / "README.md")
     shutil.copy2(SCRIPT_DIR / "source_audit.json", output / "source_audit.json")
 
@@ -276,11 +266,17 @@ def main() -> None:
             "version": "1.0.0",
             "swe_rex_version": "1.1.0",
         },
-        "tool_semantics": "Claude Code 2.1.88 core Read/Write/Edit/Grep behavior",
+        "tool_semantics": "Claude Code 2.1.88 core Read/Write/Edit behavior plus original GNU grep trajectory commands",
         "trajectories": {key: str(path) for key, path in trajectories.items()},
         "images": image_metadata,
         "fixture_sha256": relative_fixture_hashes(output),
+        "payload_files": {
+            "write_content": "payloads/reproduce.py",
+            "edit_old_string": "payloads/edit_old.txt",
+            "edit_new_string": "payloads/edit_new.txt",
+        },
         "cases": cases,
+        "grep_commands": grep_commands,
     }
     (output / "manifest.json").write_text(
         json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
@@ -294,6 +290,7 @@ def main() -> None:
 
     print(f"BUNDLE={output}")
     print(f"CASES={len(cases)}")
+    print(f"GREP_COMMANDS={len(grep_commands)}")
     print(f"FIXTURE_FILES={len(manifest['fixture_sha256'])}")
 
 

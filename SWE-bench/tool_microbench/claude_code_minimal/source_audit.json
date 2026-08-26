@@ -8,15 +8,13 @@
   "core_file_sha256": {
     "src/tools/FileReadTool/FileReadTool.ts": "09d6bc8554732ce7f1abbb7edda07dfb6cb97b0413ade26d78f37f1499098e36",
     "src/tools/FileWriteTool/FileWriteTool.ts": "996a5284e0376c8686bdd2f8d2e66f740c5e1d8cebf3ca95a79f92876d91fe80",
-    "src/tools/FileEditTool/FileEditTool.ts": "a9fa2ac618273f5b1d48b20ae54e6a3b06d4be2c731daa78dfae654c1ca6652e",
-    "src/tools/GrepTool/GrepTool.ts": "80300c3119836315b802de705a5732c8377f36b05dee31ddcbb38a9abf0bfc07"
+    "src/tools/FileEditTool/FileEditTool.ts": "a9fa2ac618273f5b1d48b20ae54e6a3b06d4be2c731daa78dfae654c1ca6652e"
   },
-  "cross_repository_check": "The four audited core files are byte-identical in the Safphere tree and all three source variants in the roln tree.",
+  "cross_repository_check": "The three audited core files are byte-identical in the Safphere tree and all three source variants in the roln tree.",
   "implemented_core_paths": {
     "Read": "text-file read, range selection, mtime-backed read state, line-number rendering",
     "Write": "parent-directory creation, full-content write with flush, post-write state update",
-    "Edit": "required prior full read, stale-content guard, unique-string validation, patch construction, full-file rewrite with flush, confirmation snippet",
-    "Grep": "ripgrep subprocess, VCS exclusions, max-column limit, content/files modes, pagination, relative-path conversion, file stat and mtime sort"
+    "Edit": "required prior full read, stale-content guard, unique-string validation, patch construction, full-file rewrite with flush, confirmation snippet"
   },
   "intentionally_excluded": [
     "LLM and network calls",
