@@ -1,0 +1,107 @@
+{
+  "schema_version": 1,
+  "description": "Representative grep and file-editor actions selected from the AWS36 SWE-agent golden trajectories.",
+  "instances": {
+    "pytest-dev__pytest-5221": {
+      "image": "swebench/sweb.eval.x86_64.pytest-dev_1776_pytest-5221:v1"
+    },
+    "django__django-14608": {
+      "image": "swebench/sweb.eval.x86_64.django_1776_django-14608:v1"
+    }
+  },
+  "cases": [
+    {
+      "id": "grep_single_file",
+      "family": "grep",
+      "subtype": "single_file_line_number",
+      "instance_id": "django__django-14608",
+      "action_index": 14,
+      "strategy": "rewrite_testbed",
+      "description": "Search one known source file and print matching line numbers."
+    },
+    {
+      "id": "grep_context",
+      "family": "grep",
+      "subtype": "single_file_context",
+      "instance_id": "pytest-dev__pytest-5221",
+      "action_index": 9,
+      "strategy": "rewrite_testbed",
+      "description": "Search one known source file and return 20 trailing context lines."
+    },
+    {
+      "id": "grep_recursive_include",
+      "family": "grep",
+      "subtype": "recursive_content_search",
+      "instance_id": "pytest-dev__pytest-5221",
+      "action_index": 3,
+      "strategy": "rewrite_testbed",
+      "description": "Recursively scan the repository while restricting candidates to Python files."
+    },
+    {
+      "id": "grep_generated_output",
+      "family": "grep",
+      "subtype": "pipeline_output_filter",
+      "instance_id": "pytest-dev__pytest-5221",
+      "action_index": 2,
+      "strategy": "materialized_stdin",
+      "materialize_command": "cd /testbed && /opt/miniconda3/envs/testbed/bin/python -m pytest --help",
+      "materialized_file": "generated/pytest_help.txt",
+      "standalone_filter": "grep -A 10 fixtures",
+      "description": "Filter generated command output; the upstream pytest output is materialized once."
+    },
+    {
+      "id": "grep_find_xargs",
+      "family": "grep",
+      "subtype": "find_xargs_content_search",
+      "instance_id": "django__django-14608",
+      "action_index": 5,
+      "strategy": "rewrite_testbed",
+      "description": "Discover Python files, fan them into grep with xargs, then filter and truncate results."
+    },
+    {
+      "id": "grep_path_filter",
+      "family": "grep",
+      "subtype": "path_stream_filter",
+      "instance_id": "django__django-14608",
+      "action_index": 4,
+      "strategy": "rewrite_testbed",
+      "description": "Use grep only to filter the path stream emitted by find."
+    },
+    {
+      "id": "editor_view_full",
+      "family": "editor",
+      "subtype": "read_full_small_file",
+      "instance_id": "django__django-14608",
+      "action_index": 12,
+      "strategy": "editor",
+      "description": "Read and line-number a complete source file below the 16 KB file-map threshold."
+    },
+    {
+      "id": "editor_view_range",
+      "family": "editor",
+      "subtype": "read_line_range",
+      "instance_id": "django__django-14608",
+      "action_index": 9,
+      "strategy": "editor",
+      "description": "Read and line-number a selected source range."
+    },
+    {
+      "id": "editor_create",
+      "family": "editor",
+      "subtype": "write_new_file",
+      "instance_id": "django__django-14608",
+      "action_index": 16,
+      "strategy": "editor",
+      "description": "Create a new reproduction script from the exact trajectory payload."
+    },
+    {
+      "id": "editor_replace",
+      "family": "editor",
+      "subtype": "unique_string_replace",
+      "instance_id": "django__django-14608",
+      "action_index": 18,
+      "strategy": "editor",
+      "description": "Read a complete file, verify a unique old string, rewrite it, and emit a confirmation snippet."
+    }
+  ]
+}

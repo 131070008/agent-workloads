@@ -1,0 +1,301 @@
+#!/usr/bin/env python3
+"""Build the minimal Claude Code-style tool microbenchmark from SWE artifacts."""
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import platform
+import shlex
+import shutil
+import subprocess
+import sys
+import uuid
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any
+
+
+SCRIPT_DIR = Path(__file__).resolve().parent
+IMAGES = {
+    "django__django-14608": "swebench/sweb.eval.x86_64.django_1776_django-14608:v1",
+    "pytest-dev__pytest-5221": "swebench/sweb.eval.x86_64.pytest-dev_1776_pytest-5221:v1",
+}
+
+
+def run(command: list[str], *, check: bool = True, stdout: Any = subprocess.PIPE) -> subprocess.CompletedProcess:
+    return subprocess.run(command, check=check, text=True, stdout=stdout, stderr=subprocess.PIPE)
+
+
+def sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        for block in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def parse_trajectories(values: list[str]) -> dict[str, Path]:
+    parsed: dict[str, Path] = {}
+    for value in values:
+        instance_id, separator, raw_path = value.partition("=")
+        if not separator or instance_id not in IMAGES:
+            raise ValueError(f"Invalid --trajectory: {value}")
+        path = Path(raw_path).expanduser().resolve()
+        if not path.is_file():
+            raise FileNotFoundError(path)
+        parsed[instance_id] = path
+    missing = sorted(set(IMAGES) - set(parsed))
+    if missing:
+        raise ValueError(f"Missing trajectories: {', '.join(missing)}")
+    return parsed
+
+
+def selected_record(loaded: dict[str, Any], one_based_index: int) -> dict[str, Any]:
+    trajectory = loaded["trajectory"]
+    if not 1 <= one_based_index <= len(trajectory):
+        raise IndexError(one_based_index)
+    return trajectory[one_based_index - 1]
+
+
+def option(tokens: list[str], name: str) -> str:
+    try:
+        return tokens[tokens.index(name) + 1]
+    except (ValueError, IndexError) as error:
+        raise ValueError(f"Missing {name} in action: {shlex.join(tokens)}") from error
+
+
+def copy_from_image(image: str, paths: list[tuple[str, Path]]) -> dict[str, Any]:
+    name = f"cc-tool-microbench-{uuid.uuid4().hex[:12]}"
+    container = run(["docker", "create", "--name", name, image, "/bin/true"]).stdout.strip()
+    try:
+        for source, destination in paths:
+            destination.mkdir(parents=True)
+            run(["docker", "cp", f"{container}:{source}/.", str(destination)], stdout=None)
+    finally:
+        subprocess.run(["docker", "rm", "-f", container], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    return json.loads(run(["docker", "image", "inspect", image]).stdout)[0]
+
+
+def relative_fixture_hashes(bundle: Path) -> dict[str, str]:
+    return {
+        str(path.relative_to(bundle)): sha256(path)
+        for path in sorted((bundle / "fixtures").rglob("*"))
+        if path.is_file()
+    }
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--trajectory", action="append", default=[], metavar="INSTANCE_ID=PATH")
+    parser.add_argument("--output-dir", type=Path, required=True)
+    args = parser.parse_args()
+
+    trajectories = parse_trajectories(args.trajectory)
+    output = args.output_dir.expanduser().resolve()
+    if output.exists():
+        parser.error(f"Output already exists: {output}")
+    output.mkdir(parents=True)
+
+    loaded = {
+        instance_id: json.loads(path.read_text(encoding="utf-8"))
+        for instance_id, path in trajectories.items()
+    }
+
+    django = loaded["django__django-14608"]
+    pytest = loaded["pytest-dev__pytest-5221"]
+    records = {
+        "grep_single": selected_record(django, 14),
+        "grep_context": selected_record(pytest, 9),
+        "grep_recursive": selected_record(pytest, 3),
+        "grep_files": selected_record(django, 5),
+        "read_full": selected_record(django, 12),
+        "read_range": selected_record(django, 9),
+        "write_create": selected_record(django, 16),
+        "edit_unique": selected_record(django, 18),
+    }
+
+    expected_fragments = {
+        "grep_single": 'grep -n "nonfield" /testbed/django/forms/forms.py',
+        "grep_context": 'grep -n "def showfixtures" -A 20',
+        "grep_recursive": 'grep -r "def _fixtures"',
+        "grep_files": 'xargs grep -l "FormSet"',
+        "read_full": "str_replace_editor view /testbed/django/forms/utils.py",
+        "read_range": "str_replace_editor view /testbed/django/forms/formsets.py",
+        "write_create": "str_replace_editor create /testbed/reproduce.py",
+        "edit_unique": "str_replace_editor str_replace /testbed/django/forms/formsets.py",
+    }
+    for key, fragment in expected_fragments.items():
+        action = records[key].get("action", "")
+        if fragment not in action:
+            raise ValueError(f"Trajectory action drift for {key}: {action}")
+
+    image_metadata = {
+        "django__django-14608": copy_from_image(
+            IMAGES["django__django-14608"],
+            [("/testbed/django/forms", output / "fixtures" / "django" / "forms")],
+        ),
+        "pytest-dev__pytest-5221": copy_from_image(
+            IMAGES["pytest-dev__pytest-5221"],
+            [("/testbed/src/_pytest", output / "fixtures" / "pytest" / "_pytest")],
+        ),
+    }
+
+    write_tokens = shlex.split(records["write_create"]["action"])
+    edit_tokens = shlex.split(records["edit_unique"]["action"])
+    write_content = option(write_tokens, "--file_text")
+    old_string = option(edit_tokens, "--old_str")
+    new_string = option(edit_tokens, "--new_str")
+
+    formsets = output / "fixtures" / "django" / "forms" / "formsets.py"
+    source_formsets = formsets.read_text(encoding="utf-8")
+    if source_formsets.count(old_string) != 1:
+        raise ValueError("The selected edit old_string is not unique in the image fixture")
+    edited_formsets = source_formsets.replace(old_string, new_string)
+
+    cases = [
+        {
+            "id": "read_full",
+            "tool": "Read",
+            "description": "Read and line-number a complete 5.9 KB Django source file.",
+            "fixture": "fixtures/django/forms/utils.py",
+            "offset": 1,
+            "limit": None,
+            "expected_source_sha256": sha256(output / "fixtures" / "django" / "forms" / "utils.py"),
+            "source_instance": "django__django-14608",
+            "source_action_index": 12,
+        },
+        {
+            "id": "read_range",
+            "tool": "Read",
+            "description": "Read and line-number lines 290-298 from Django formsets.py.",
+            "fixture": "fixtures/django/forms/formsets.py",
+            "offset": 290,
+            "limit": 9,
+            "expected_source_sha256": sha256(formsets),
+            "source_instance": "django__django-14608",
+            "source_action_index": 9,
+        },
+        {
+            "id": "write_create",
+            "tool": "Write",
+            "description": "Create reproduce.py with the exact trajectory payload.",
+            "content": write_content,
+            "expected_sha256": hashlib.sha256(write_content.encode()).hexdigest(),
+            "source_instance": "django__django-14608",
+            "source_action_index": 16,
+        },
+        {
+            "id": "edit_unique",
+            "tool": "Edit",
+            "description": "Read-first, validate one exact match, and rewrite formsets.py.",
+            "fixture": "fixtures/django/forms/formsets.py",
+            "old_string": old_string,
+            "new_string": new_string,
+            "replace_all": False,
+            "expected_sha256": hashlib.sha256(edited_formsets.encode()).hexdigest(),
+            "source_instance": "django__django-14608",
+            "source_action_index": 18,
+        },
+        {
+            "id": "grep_content_single",
+            "tool": "Grep",
+            "description": "Search one Django source file with line numbers.",
+            "path": "fixtures/django/forms/forms.py",
+            "pattern": "nonfield",
+            "output_mode": "content",
+            "line_numbers": True,
+            "expected_line_numbers": [317, 359],
+            "source_instance": "django__django-14608",
+            "source_action_index": 14,
+        },
+        {
+            "id": "grep_content_context",
+            "tool": "Grep",
+            "description": "Search pytest python.py and return 20 trailing context lines.",
+            "path": "fixtures/pytest/_pytest/python.py",
+            "pattern": "def showfixtures",
+            "glob": "*.py",
+            "output_mode": "content",
+            "line_numbers": True,
+            "after_context": 20,
+            "expected_line_numbers": [1297],
+            "source_instance": "pytest-dev__pytest-5221",
+            "source_action_index": 9,
+        },
+        {
+            "id": "grep_recursive_no_match",
+            "tool": "Grep",
+            "description": "Recursively search the real _pytest subtree with a Python glob.",
+            "path": "fixtures/pytest/_pytest",
+            "pattern": "def _fixtures",
+            "glob": "*.py",
+            "output_mode": "content",
+            "line_numbers": True,
+            "expected_matches": 0,
+            "source_instance": "pytest-dev__pytest-5221",
+            "source_action_index": 3,
+        },
+        {
+            "id": "grep_files_with_matches",
+            "tool": "Grep",
+            "description": "Run the Claude Code default file-list path, including stat and mtime sort.",
+            "path": "fixtures/django/forms",
+            "pattern": "FormSet",
+            "glob": "*.py",
+            "output_mode": "files_with_matches",
+            "head_limit": 10,
+            "expected_min_files": 1,
+            "source_instance": "django__django-14608",
+            "source_action_index": 5,
+        },
+    ]
+
+    provenance = output / "provenance"
+    provenance.mkdir()
+    for key, record in records.items():
+        (provenance / f"{key}.json").write_text(
+            json.dumps(record, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+        )
+
+    shutil.copy2(SCRIPT_DIR / "cc_tool_microbench.mjs", output / "cc_tool_microbench.mjs")
+    shutil.copy2(SCRIPT_DIR / "README.md", output / "README.md")
+    shutil.copy2(SCRIPT_DIR / "source_audit.json", output / "source_audit.json")
+
+    manifest = {
+        "schema_version": 1,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "host": {
+            "hostname": platform.node(),
+            "platform": platform.platform(),
+            "python": sys.version,
+        },
+        "trajectory_framework": {
+            "name": "SWE-agent",
+            "version": "1.0.0",
+            "swe_rex_version": "1.1.0",
+        },
+        "tool_semantics": "Claude Code 2.1.88 core Read/Write/Edit/Grep behavior",
+        "trajectories": {key: str(path) for key, path in trajectories.items()},
+        "images": image_metadata,
+        "fixture_sha256": relative_fixture_hashes(output),
+        "cases": cases,
+    }
+    (output / "manifest.json").write_text(
+        json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
+
+    hash_lines = []
+    for path in sorted(output.rglob("*")):
+        if path.is_file() and path.name != "SHA256SUMS":
+            hash_lines.append(f"{sha256(path)}  {path.relative_to(output)}")
+    (output / "SHA256SUMS").write_text("\n".join(hash_lines) + "\n", encoding="utf-8")
+
+    print(f"BUNDLE={output}")
+    print(f"CASES={len(cases)}")
+    print(f"FIXTURE_FILES={len(manifest['fixture_sha256'])}")
+
+
+if __name__ == "__main__":
+    main()
